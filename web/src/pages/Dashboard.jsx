@@ -134,7 +134,7 @@ export function Dashboard() {
                     {campaign.gm?.username}
                   </span>
                   <span>{campaign.memberCount} joueur(s)</span>
-                  {campaign.sceneCount ? <span>{campaign.sceneCount} scene(s)</span> : null}
+                  {campaign.sceneCount ? <span>{campaign.sceneCount} scène(s)</span> : null}
                 </div>
                 {campaign.joinCode ? (
                   <div className="join-code" title="Code à transmettre aux joueurs">
