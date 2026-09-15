@@ -7,3 +7,4 @@ uploads/
 web/dist
 server/node_modules
 web/node_modules
+server/builtin/
