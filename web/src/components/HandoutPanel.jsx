@@ -81,7 +81,7 @@ export function HandoutPanel() {
                   {handout.isPublic
                     ? 'visible par la table'
                     : handout.sharedWith?.length
-                      ? `partage avec ${handout.sharedWith.length} joueur(s)`
+                      ? `partagé avec ${handout.sharedWith.length} joueur(s)`
                       : 'privé (MJ)'}
                 </span>
               </span>
