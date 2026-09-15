@@ -1,0 +1,30 @@
+# Surcharge pour le developpement : hot-reload serveur + client.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  server:
+    build:
+      context: ./server
+      target: dev
+    command: npm run dev
+    environment:
+      NODE_ENV: development
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+    volumes:
+      - ./server/src:/app/src
+      - ./server/prisma:/app/prisma
+      - uploads:/app/uploads
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: ./web
+      target: dev
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_URL: http://localhost:4000
+    volumes:
+      - ./web/src:/app/src
+      - ./web/index.html:/app/index.html
+    ports:
+      - "5173:5173"

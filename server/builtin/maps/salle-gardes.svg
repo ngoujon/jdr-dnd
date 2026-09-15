@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1120" width="1680" height="1120">
+  <defs>
+    <pattern id="tile" width="70" height="70" patternUnits="userSpaceOnUse">
+      <rect width="70" height="70" fill="#6b6157"/>
+      <rect width="70" height="70" fill="none" stroke="#585047" stroke-width="2"/>
+      <circle cx="18" cy="24" r="3" fill="#60574e"/>
+      <circle cx="52" cy="48" r="2" fill="#74695e"/>
+      <path d="M8 58 L26 62" stroke="#5e554d" stroke-width="2"/>
+    </pattern>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="72%">
+      <stop offset="60%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.45"/>
+    </radialGradient>
+  </defs>
+  <rect width="1680" height="1120" fill="#29231d"/>
+  <rect x="70" y="70" width="1540" height="980" fill="url(#tile)"/>
+  <rect x="70" y="70" width="1540" height="980" fill="none" stroke="#3a3229" stroke-width="24"/>
+  
+  <rect x="180" y="180" width="300" height="160" rx="8" fill="#4a3c2c" stroke="#2b221a" stroke-width="6"/>
+  <rect x="1200" y="180" width="300" height="160" rx="8" fill="#4a3c2c" stroke="#2b221a" stroke-width="6"/>
+  <rect x="740" y="480" width="200" height="200" rx="12" fill="#5b4a36" stroke="#2b221a" stroke-width="8"/>
+  <circle cx="840" cy="580" r="54" fill="#c0873f" opacity="0.35"/>
+  <rect x="180" y="820" width="1320" height="120" rx="10" fill="#514639" stroke="#2b221a" stroke-width="6"/>
+  <circle cx="300" cy="700" r="26" fill="#3a3229" stroke="#241d17" stroke-width="6"/><circle cx="560" cy="700" r="26" fill="#3a3229" stroke="#241d17" stroke-width="6"/><circle cx="1120" cy="700" r="26" fill="#3a3229" stroke="#241d17" stroke-width="6"/><circle cx="1380" cy="700" r="26" fill="#3a3229" stroke="#241d17" stroke-width="6"/>
+  <rect width="1680" height="1120" fill="url(#vignette)"/>
+</svg>

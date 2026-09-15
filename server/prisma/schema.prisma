@@ -1,0 +1,319 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  GM
+  PLAYER
+}
+
+enum AssetKind {
+  MAP
+  TOKEN
+  PORTRAIT
+  HANDOUT
+  AUDIO
+  MISC
+}
+
+enum TokenLayer {
+  BACKGROUND
+  OBJECT
+  TOKEN
+  GM
+}
+
+enum MessageType {
+  TEXT
+  EMOTE
+  OOC
+  ROLL
+  SYSTEM
+  WHISPER
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  username     String       @unique
+  passwordHash String
+  avatarUrl    String?
+  isAdmin      Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  lastSeenAt   DateTime     @default(now())
+
+  ownedCampaigns Campaign[]    @relation("CampaignGM")
+  memberships    Membership[]
+  characters     Character[]
+  assets         Asset[]
+  messages       ChatMessage[]
+  tokens         Token[]
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  name          String
+  description   String   @default("")
+  system        String   @default("dnd5e")
+  bannerUrl     String?
+  joinCode      String   @unique
+  gmId          String
+  activeSceneId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  gm         User          @relation("CampaignGM", fields: [gmId], references: [id], onDelete: Cascade)
+  members    Membership[]
+  scenes     Scene[]
+  characters Character[]
+  handouts   Handout[]
+  messages   ChatMessage[]
+  assets     Asset[]
+  combat     Combat?
+
+  @@index([gmId])
+}
+
+model Membership {
+  id         String   @id @default(cuid())
+  campaignId String
+  userId     String
+  role       Role     @default(PLAYER)
+  color      String   @default("#c0873f")
+  joinedAt   DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([userId])
+}
+
+/// Une scene = une carte de jeu (avec sa grille, son brouillard, ses pions).
+model Scene {
+  id         String   @id @default(cuid())
+  campaignId String
+  name       String
+  order      Int      @default(0)
+  notes      String   @default("")
+
+  backgroundUrl   String?
+  backgroundColor String  @default("#11161f")
+  width           Int     @default(1920)
+  height          Int     @default(1080)
+
+  gridEnabled Boolean @default(true)
+  gridSize    Int     @default(70)
+  gridColor   String  @default("#ffffff")
+  gridOpacity Float   @default(0.12)
+  gridOffsetX Int     @default(0)
+  gridOffsetY Int     @default(0)
+  /// Nombre d'unites (ex: pieds) representees par une case.
+  gridUnit      Float  @default(5)
+  gridUnitLabel String @default("ft")
+
+  fogEnabled Boolean @default(false)
+  /// Zones revelees : [{ type:'rect'|'circle'|'poly', ... }]
+  fogReveals Json    @default("[]")
+  /// Traits dessines par le MJ : [{ points:[], color, width, layer }]
+  drawings   Json    @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  tokens   Token[]
+
+  @@index([campaignId])
+}
+
+model Token {
+  id      String @id @default(cuid())
+  sceneId String
+  name    String @default("")
+
+  imageUrl String?
+  /// Style genere (sans image) : { shape, fill, ring, glyph, glyphColor }
+  style    Json    @default("{}")
+
+  x        Float      @default(0)
+  y        Float      @default(0)
+  width    Float      @default(70)
+  height   Float      @default(70)
+  rotation Float      @default(0)
+  layer    TokenLayer @default(TOKEN)
+  zIndex   Int        @default(0)
+
+  characterId String?
+  ownerId     String?
+
+  hp       Int?
+  maxHp    Int?
+  ac       Int?
+  /// Liste de conditions D&D : ["poisoned","prone", ...]
+  conditions Json @default("[]")
+
+  showNameplate  Boolean @default(true)
+  showHealthBar  Boolean @default(true)
+  /// Visible par les joueurs (false = uniquement MJ)
+  visible        Boolean @default(true)
+  locked         Boolean @default(false)
+  auraRadius     Float   @default(0)
+  auraColor      String  @default("#c0873f")
+  /// Rayon de lumiere emis par le pion (en unites de grille)
+  lightRadius    Float   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scene     Scene      @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  character Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  owner     User?      @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([sceneId])
+}
+
+model Character {
+  id         String  @id @default(cuid())
+  campaignId String?
+  ownerId    String
+  name       String
+  isNpc      Boolean @default(false)
+  /// Visible par les autres joueurs
+  shared     Boolean @default(true)
+
+  class      String @default("")
+  subclass   String @default("")
+  race       String @default("")
+  background String @default("")
+  alignment  String @default("")
+  level      Int    @default(1)
+  xp         Int    @default(0)
+
+  portraitUrl String?
+  tokenUrl    String?
+  /// Style visuel du perso : { frame, frameColor, bg, glyph, accent }
+  style       Json    @default("{}")
+
+  /// { str, dex, con, int, wis, cha }
+  abilities Json @default("{\"str\":10,\"dex\":10,\"con\":10,\"int\":10,\"wis\":10,\"cha\":10}")
+  /// { saves: {str:0|1|2}, skills: {acrobatics:0|1|2, ...} }
+  proficiencies Json @default("{\"saves\":{},\"skills\":{}}")
+
+  hp          Int    @default(10)
+  maxHp       Int    @default(10)
+  tempHp      Int    @default(0)
+  ac          Int    @default(10)
+  speed       Int    @default(30)
+  initiative  Int    @default(0)
+  hitDice     String @default("1d8")
+  hitDiceLeft Int    @default(1)
+  inspiration Boolean @default(false)
+  /// { successes: 0-3, failures: 0-3 }
+  deathSaves  Json   @default("{\"successes\":0,\"failures\":0}")
+
+  /// [{ name, bonus, damage, type, range, notes }]
+  attacks   Json @default("[]")
+  /// { ability, dc, attack, slots: {1:{max,used},...}, known:[{name,level,prepared,notes}] }
+  spellcasting Json @default("{\"ability\":\"int\",\"slots\":{},\"known\":[]}")
+  /// [{ name, qty, weight, notes, equipped }]
+  inventory Json @default("[]")
+  /// { cp, sp, ep, gp, pp }
+  currency  Json @default("{\"cp\":0,\"sp\":0,\"ep\":0,\"gp\":0,\"pp\":0}")
+  /// [{ name, source, description }]
+  features  Json @default("[]")
+  /// { personality, ideals, bonds, flaws, backstory, languages, tools, notes }
+  details   Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tokens   Token[]
+
+  @@index([campaignId])
+  @@index([ownerId])
+}
+
+model Asset {
+  id         String    @id @default(cuid())
+  ownerId    String
+  campaignId String?
+  name       String
+  url        String
+  kind       AssetKind @default(MISC)
+  mime       String    @default("")
+  size       Int       @default(0)
+  width      Int?
+  height     Int?
+  /// Tags libres pour filtrer la bibliotheque
+  tags       String[]  @default([])
+  /// Ressource fournie avec l'app (non supprimable)
+  builtin    Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([campaignId])
+}
+
+/// Documents de preparation du MJ : notes, images, secrets partageables.
+model Handout {
+  id         String  @id @default(cuid())
+  campaignId String
+  title      String
+  content    String  @default("")
+  imageUrl   String?
+  /// Partage a toute la table
+  isPublic   Boolean @default(false)
+  /// Partage cible : liste d'userId
+  sharedWith String[] @default([])
+  order      Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  campaignId String
+  userId     String?
+  authorName String
+  type       MessageType @default(TEXT)
+  content    String      @default("")
+  /// Detail du jet : { formula, total, breakdown:[...], advantage, label }
+  rollData   Json?
+  /// userId destinataire d'un chuchotement
+  whisperTo  String?
+  createdAt  DateTime    @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, createdAt])
+}
+
+model Combat {
+  id         String  @id @default(cuid())
+  campaignId String  @unique
+  round      Int     @default(1)
+  turnIndex  Int     @default(0)
+  isActive   Boolean @default(false)
+  /// [{ id, name, initiative, tokenId, characterId, hp, maxHp, ac, isNpc, visible }]
+  entries    Json    @default("[]")
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
