@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'tabletop.token';
+const BASE = import.meta.env.BASE_URL;
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (token) => {
@@ -26,7 +27,7 @@ const request = async (method, path, body, options = {}) => {
     payload = JSON.stringify(body);
   }
 
-  const res = await fetch(`/api${path}`, { method, headers, body: payload });
+  const res = await fetch(`${BASE}api${path}`, { method, headers, body: payload });
   const text = await res.text();
   const data = text ? JSON.parse(text) : {};
 
@@ -34,7 +35,8 @@ const request = async (method, path, body, options = {}) => {
     if (res.status === 401 && getToken()) {
       setToken(null);
       // Session morte : on force un retour propre à l'écran de connexion.
-      if (!location.pathname.startsWith('/connexion')) location.href = '/connexion';
+      const loginPath = `${BASE}connexion`;
+      if (!location.pathname.startsWith(loginPath)) location.href = loginPath;
     }
     throw new ApiError(res.status, data.error || `Erreur ${res.status}`, data.details);
   }

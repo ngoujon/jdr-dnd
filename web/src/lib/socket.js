@@ -7,7 +7,7 @@ let socket = null;
 export const getSocket = () => {
   if (socket) return socket;
   socket = io({
-    path: '/socket.io',
+    path: `${import.meta.env.BASE_URL}socket.io`,
     auth: { token: getToken() },
     transports: ['websocket', 'polling'],
     reconnectionDelay: 700,
