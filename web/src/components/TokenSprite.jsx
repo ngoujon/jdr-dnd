@@ -49,7 +49,10 @@ function TokenSpriteBase({ token, scale, selected, dimmed, onPointerDown, onDoub
         }}
       >
         {!hasImage && style.glyph ? (
-          <span className="token-glyph" style={{ color: style.glyphColor || '#ede0c8' }}>
+          <span
+            className="token-glyph"
+            style={{ color: style.glyphColor || '#ede0c8', fontSize: Math.min(token.width, token.height) * 0.42 }}
+          >
             {style.glyph}
           </span>
         ) : null}
