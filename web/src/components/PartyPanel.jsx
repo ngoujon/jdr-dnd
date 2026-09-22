@@ -20,7 +20,7 @@ export function HpBar({ hp, maxHp, tempHp = 0 }) {
   );
 }
 
-export function PartyPanel({ onOpenCharacter }) {
+export function PartyPanel({ onOpenCharacter, onWhisper }) {
   const characters = useTable((s) => s.characters);
   const online = useTable((s) => s.online);
   const campaign = useTable((s) => s.campaign);
@@ -56,6 +56,16 @@ export function PartyPanel({ onOpenCharacter }) {
                       {onlineIds.has(member.userId) ? 'en ligne' : 'hors ligne'}
                     </span>
                   </div>
+                  {member.userId !== me?.id ? (
+                    <button
+                      type="button"
+                      className="btn xs ghost"
+                      title={`Message privé à ${member.username}`}
+                      onClick={() => onWhisper?.(member)}
+                    >
+                      MP
+                    </button>
+                  ) : null}
                 </div>
                 {owned.map((character) => (
                   <button

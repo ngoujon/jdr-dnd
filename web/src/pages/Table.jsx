@@ -54,6 +54,7 @@ export function TablePage() {
   const [leftTab, setLeftTab] = useState('scenes');
   const [openCharacter, setOpenCharacter] = useState(null);
   const [speakingAs, setSpeakingAs] = useState(null);
+  const [whisperTarget, setWhisperTarget] = useState(null);
   const viewRef = useRef({});
 
   useEffect(() => {
@@ -371,9 +372,22 @@ export function TablePage() {
           />
           <div className="rail-body">
             {rightTab === 'chat' ? (
-              <ChatPanel speakingAs={speakingAs} onSpeakingAsChange={setSpeakingAs} />
+              <ChatPanel
+                speakingAs={speakingAs}
+                onSpeakingAsChange={setSpeakingAs}
+                whisperTarget={whisperTarget}
+                onWhisperConsumed={() => setWhisperTarget(null)}
+              />
             ) : null}
-            {rightTab === 'party' ? <PartyPanel onOpenCharacter={setOpenCharacter} /> : null}
+            {rightTab === 'party' ? (
+              <PartyPanel
+                onOpenCharacter={setOpenCharacter}
+                onWhisper={(member) => {
+                  setWhisperTarget(member);
+                  setRightTab('chat');
+                }}
+              />
+            ) : null}
             {rightTab === 'combat' ? <CombatTracker /> : null}
             {rightTab === 'handouts' ? <HandoutPanel /> : null}
           </div>

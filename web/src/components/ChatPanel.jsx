@@ -47,12 +47,13 @@ function RollCard({ roll, whisper }) {
   );
 }
 
-export function ChatPanel({ speakingAs, onSpeakingAsChange }) {
+export function ChatPanel({ speakingAs, onSpeakingAsChange, whisperTarget, onWhisperConsumed }) {
   const messages = useTable((s) => s.messages);
   const sendChat = useTable((s) => s.sendChat);
   const roll = useTable((s) => s.roll);
   const characters = useTable((s) => s.characters);
   const isGM = useTable((s) => s.isGM);
+  const campaign = useTable((s) => s.campaign);
   const me = useAuth((s) => s.user);
   const toast = useToast();
 
@@ -60,6 +61,7 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange }) {
   const [advantage, setAdvantage] = useState('none');
   const [secret, setSecret] = useState(false);
   const listRef = useRef(null);
+  const inputRef = useRef(null);
   const stickToBottom = useRef(true);
 
   const mine = useMemo(
@@ -67,10 +69,23 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange }) {
     [characters, me, isGM],
   );
 
+  const usernameById = useMemo(() => {
+    const map = new Map();
+    for (const member of campaign?.members || []) map.set(member.userId, member.username);
+    return map;
+  }, [campaign]);
+
   useEffect(() => {
     const el = listRef.current;
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
+
+  useEffect(() => {
+    if (!whisperTarget) return;
+    setText(`/w ${whisperTarget.username} `);
+    inputRef.current?.focus();
+    onWhisperConsumed?.();
+  }, [whisperTarget, onWhisperConsumed]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -118,7 +133,13 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange }) {
             <div className="chat-body">
               <header>
                 <strong>{message.authorName}</strong>
-                {message.whisperTo ? <span className="tag">chuchote</span> : null}
+                {message.whisperTo ? (
+                  <span className="tag">
+                    {message.whisperTo === me?.id
+                      ? 'privé pour vous'
+                      : `privé pour ${usernameById.get(message.whisperTo) || '…'}`}
+                  </span>
+                ) : null}
                 {message.type === 'OOC' ? <span className="tag">hors-jeu</span> : null}
                 <time>
                   {new Date(message.createdAt).toLocaleTimeString('fr-FR', {
@@ -191,6 +212,7 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange }) {
           </select>
         ) : null}
         <input
+          ref={inputRef}
           className="input"
           value={text}
           onChange={(e) => setText(e.target.value)}
