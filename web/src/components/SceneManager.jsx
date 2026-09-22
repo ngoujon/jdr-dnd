@@ -186,6 +186,14 @@ export function SceneManager() {
               />
             </div>
             <div className="field">
+              <label>Label de l'unité</label>
+              <LazyInput
+                type="text"
+                value={scene.gridUnitLabel}
+                onCommit={(v) => patchScene({ gridUnitLabel: String(v || 'm').slice(0, 10) })}
+              />
+            </div>
+            <div className="field">
               <label>Décalage X</label>
               <LazyInput
                 type="number"
