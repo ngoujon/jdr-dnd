@@ -655,7 +655,7 @@
   font-size: 11px;
   color: var(--text);
 }
-.die.dropped { opacity: 0.35; text-decoration: line-through; }
+.die.dropped { opacity: 0.7; text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--danger); }
 .die.max { background: rgba(87, 168, 102, 0.22); border-color: var(--success); color: #a7e0b3; }
 .die.min { background: rgba(208, 87, 76, 0.22); border-color: var(--danger); color: #f2aca5; }
 .roll-flag {

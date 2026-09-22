@@ -23,7 +23,7 @@ export function StyledToken({ style = {}, imageUrl, name = '', size = 72 }) {
       }}
     >
       {!imageUrl ? (
-        <span style={{ color: style.glyphColor || '#ede0c8', fontSize: size * 0.42 }}>
+        <span style={{ color: style.glyphColor || '#ede0c8', fontSize: size * 0.68 }}>
           {style.glyph || name?.[0]?.toUpperCase() || '?'}
         </span>
       ) : null}

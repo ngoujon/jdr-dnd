@@ -64,6 +64,35 @@ export function MapCanvas({
     [isGM, me, ownedCharacterIds],
   );
 
+  /** Un pion "possede" reste visible pour son joueur meme dans le brouillard. */
+  const isTokenOwned = useCallback(
+    (token) =>
+      token.ownerId === me?.id || Boolean(token.characterId && ownedCharacterIds.has(token.characterId)),
+    [me, ownedCharacterIds],
+  );
+
+  /** Determine si un point de la scene tombe dans une zone de brouillard non revelee,
+   *  en reproduisant l'ordre d'empilement des rectangles utilise par le masque SVG. */
+  const isTokenFogged = useCallback(
+    (token) => {
+      if (!scene?.fogEnabled) return false;
+      const cx = token.x + (token.width || 0) / 2;
+      const cy = token.y + (token.height || 0) / 2;
+      let hidden = true;
+      for (const rect of scene.fogReveals || []) {
+        const rx = Math.min(rect.x, rect.x + (rect.w ?? 0));
+        const ry = Math.min(rect.y, rect.y + (rect.h ?? 0));
+        const rw = Math.abs(rect.w ?? 0);
+        const rh = Math.abs(rect.h ?? 0);
+        if (cx >= rx && cx <= rx + rw && cy >= ry && cy <= ry + rh) {
+          hidden = rect.mode !== 'reveal';
+        }
+      }
+      return hidden;
+    },
+    [scene?.fogEnabled, scene?.fogReveals],
+  );
+
   /* --- Conversions écran <-> scene --------------------------------------- */
 
   const toScene = useCallback(
@@ -348,6 +377,42 @@ export function MapCanvas({
     [scene?.fogReveals, fogDraft],
   );
 
+  /** Pions a rendre : le MJ voit tout, un joueur ne voit pas les pions d'autrui
+   *  places dans une zone de brouillard non revelee (son propre pion reste visible). */
+  const { belowFogTokens, aboveFogTokens } = useMemo(() => {
+    if (isGM) return { belowFogTokens: tokens, aboveFogTokens: [] };
+    const below = [];
+    const above = [];
+    for (const token of tokens) {
+      const owned = isTokenOwned(token);
+      const fogged = isTokenFogged(token);
+      if (!owned && fogged) continue;
+      if (owned && fogged) above.push(token);
+      else below.push(token);
+    }
+    return { belowFogTokens: below, aboveFogTokens: above };
+  }, [tokens, isGM, isTokenOwned, isTokenFogged]);
+
+  const renderTokenSprite = (token) => {
+    const ghost = localDrag[token.id] || ghosts[token.id];
+    const shown = ghost ? { ...token, x: ghost.x, y: ghost.y } : token;
+    return (
+      <TokenSprite
+        key={token.id}
+        token={shown}
+        scale={view.k}
+        gridSize={gridSize}
+        selected={selection.includes(token.id)}
+        dimmed={!token.visible}
+        onPointerDown={onTokenPointerDown(token)}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onOpenToken?.(token);
+        }}
+      />
+    );
+  };
+
   if (!scene) {
     return (
       <div className="map-host empty-map">
@@ -420,27 +485,7 @@ export function MapCanvas({
             ))}
         </svg>
 
-        <div className="token-layer">
-          {tokens.map((token) => {
-            const ghost = localDrag[token.id] || ghosts[token.id];
-            const shown = ghost ? { ...token, x: ghost.x, y: ghost.y } : token;
-            return (
-              <TokenSprite
-                key={token.id}
-                token={shown}
-                scale={view.k}
-                gridSize={gridSize}
-                selected={selection.includes(token.id)}
-                dimmed={!token.visible}
-                onPointerDown={onTokenPointerDown(token)}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  onOpenToken?.(token);
-                }}
-              />
-            );
-          })}
-        </div>
+        <div className="token-layer">{belowFogTokens.map(renderTokenSprite)}</div>
 
         {scene.fogEnabled ? (
           <svg className="map-layer fog" width={scene.width} height={scene.height} aria-hidden="true">
@@ -467,6 +512,10 @@ export function MapCanvas({
               mask="url(#fog-mask)"
             />
           </svg>
+        ) : null}
+
+        {aboveFogTokens.length ? (
+          <div className="token-layer">{aboveFogTokens.map(renderTokenSprite)}</div>
         ) : null}
 
         {marquee ? (
