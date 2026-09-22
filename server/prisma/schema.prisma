@@ -114,9 +114,9 @@ model Scene {
   gridOpacity Float   @default(0.12)
   gridOffsetX Int     @default(0)
   gridOffsetY Int     @default(0)
-  /// Nombre d'unites (ex: pieds) representees par une case.
-  gridUnit      Float  @default(5)
-  gridUnitLabel String @default("ft")
+  /// Nombre d'unites (ex: metres) representees par une case.
+  gridUnit      Float  @default(1.5)
+  gridUnitLabel String @default("m")
 
   fogEnabled Boolean @default(false)
   /// Zones revelees : [{ type:'rect'|'circle'|'poly', ... }]

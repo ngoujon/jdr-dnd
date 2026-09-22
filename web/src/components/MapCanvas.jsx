@@ -344,7 +344,7 @@ export function MapCanvas({
   const measureDistance = measure
     ? Math.round(
         (Math.hypot(measure.to.x - measure.from.x, measure.to.y - measure.from.y) / gridSize) *
-          (scene.gridUnit || 5),
+          (scene.gridUnit || 1.5),
       )
     : 0;
 
@@ -494,7 +494,7 @@ export function MapCanvas({
               textAnchor="middle"
               style={{ paintOrder: 'stroke', stroke: '#05070a', strokeWidth: 4 / view.k }}
             >
-              {measureDistance} {scene.gridUnitLabel || 'ft'}
+              {measureDistance} {scene.gridUnitLabel || 'm'}
             </text>
           </svg>
         ) : null}

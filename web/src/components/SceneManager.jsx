@@ -182,7 +182,7 @@ export function SceneManager() {
               <LazyInput
                 type="number"
                 value={scene.gridUnit}
-                onCommit={(v) => patchScene({ gridUnit: Math.max(0.1, Number(v) || 5) })}
+                onCommit={(v) => patchScene({ gridUnit: Math.max(0.1, Number(v) || 1.5) })}
               />
             </div>
             <div className="field">
