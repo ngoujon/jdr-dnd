@@ -90,11 +90,12 @@ export function MapCanvas({
         const rect = hostRef.current.getBoundingClientRect();
         setView((v) => ({ ...v, x: rect.width / 2 - x * v.k, y: rect.height / 2 - y * v.k }));
       },
+      toScene,
       get scale() {
         return view.k;
       },
     };
-  }, [viewRef, fitToScreen, view.k]);
+  }, [viewRef, fitToScreen, view.k, toScene]);
 
   /* --- Zoom molette ------------------------------------------------------- */
 

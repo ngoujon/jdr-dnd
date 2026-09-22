@@ -100,19 +100,20 @@ export function TablePage() {
     const raw = event.dataTransfer.getData('application/x-asset');
     if (!raw || !scene) return;
     const asset = JSON.parse(raw);
-    const host = event.currentTarget.getBoundingClientRect();
     const gridSize = scene.gridSize || 70;
-    // On ne connait pas la transformation exacte ici : on depose au centre visible.
     try {
       if (asset.kind === 'MAP') {
         toast('Utilisez le panneau Scènes pour changer le fond de carte', 'info');
         return;
       }
+      const dropPoint = viewRef.current?.toScene
+        ? viewRef.current.toScene(event.clientX, event.clientY)
+        : { x: scene.width / 2, y: scene.height / 2 };
       await createToken({
         name: asset.name,
         imageUrl: asset.url,
-        x: Math.round(scene.width / 2 / gridSize) * gridSize,
-        y: Math.round(scene.height / 2 / gridSize) * gridSize,
+        x: Math.round(dropPoint.x / gridSize) * gridSize,
+        y: Math.round(dropPoint.y / gridSize) * gridSize,
         width: gridSize,
         height: gridSize,
       });
@@ -199,14 +200,17 @@ export function TablePage() {
                           return;
                         }
                         const gridSize = scene.gridSize || 70;
+                        const x = Math.round(scene.width / 2 / gridSize) * gridSize;
+                        const y = Math.round(scene.height / 2 / gridSize) * gridSize;
                         await createToken({
                           name: asset.name,
                           imageUrl: asset.url,
-                          x: Math.round(scene.width / 2 / gridSize) * gridSize,
-                          y: Math.round(scene.height / 2 / gridSize) * gridSize,
+                          x,
+                          y,
                           width: gridSize,
                           height: gridSize,
                         });
+                        viewRef.current?.centerOn?.(x, y);
                         toast('Pion ajouté au centre de la carte', 'success');
                       }}
                     />
@@ -245,20 +249,23 @@ export function TablePage() {
                     onClick={async () => {
                       if (!scene) return toast('Aucune scène active', 'error');
                       const gridSize = scene.gridSize || 70;
+                      const x = Math.round(scene.width / 2 / gridSize) * gridSize;
+                      const y = Math.round(scene.height / 2 / gridSize) * gridSize;
                       try {
                         await createToken({
                           name: character.name,
                           imageUrl: character.tokenUrl || character.portraitUrl || null,
                           style: character.style || {},
                           characterId: character.id,
-                          x: Math.round(scene.width / 2 / gridSize) * gridSize,
-                          y: Math.round(scene.height / 2 / gridSize) * gridSize,
+                          x,
+                          y,
                           width: gridSize,
                           height: gridSize,
                           hp: character.hp,
                           maxHp: character.maxHp,
                           ac: character.ac,
                         });
+                        viewRef.current?.centerOn?.(x, y);
                       } catch (err) {
                         toast(err.message, 'error');
                       }
