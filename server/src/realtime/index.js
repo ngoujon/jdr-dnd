@@ -94,16 +94,21 @@ export const attachRealtime = (httpServer) => {
     socket.data.campaigns = new Set();
 
     socket.on('campaign:join', async (campaignId, ack) => {
-      const access = await membershipOf(campaignId, user.id);
-      if (!access) return ack?.({ error: "Accès refusé à cette campagne" });
-      socket.join(roomCampaign(campaignId));
-      if (access.isGM) socket.join(roomGM(campaignId));
-      socket.data.campaigns.add(campaignId);
-      socket.data.isGM = access.isGM;
+      try {
+        if (typeof campaignId !== 'string') return ack?.({ error: 'Accès refusé à cette campagne' });
+        const access = await membershipOf(campaignId, user.id);
+        if (!access) return ack?.({ error: "Accès refusé à cette campagne" });
+        socket.join(roomCampaign(campaignId));
+        if (access.isGM) socket.join(roomGM(campaignId));
+        socket.data.campaigns.add(campaignId);
+        socket.data.isGM = access.isGM;
 
-      const online = addPresence(campaignId, { ...user, isGM: access.isGM, color: access.color }, socket.id);
-      emitToCampaign(campaignId, 'presence:updated', { online });
-      ack?.({ ok: true, isGM: access.isGM, online });
+        const online = addPresence(campaignId, { ...user, isGM: access.isGM, color: access.color }, socket.id);
+        emitToCampaign(campaignId, 'presence:updated', { online });
+        ack?.({ ok: true, isGM: access.isGM, online });
+      } catch (err) {
+        ack?.({ error: err.message || 'Erreur interne' });
+      }
     });
 
     socket.on('campaign:leave', (campaignId) => {
