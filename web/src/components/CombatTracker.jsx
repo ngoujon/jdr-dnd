@@ -15,6 +15,7 @@ export function CombatTracker() {
   const saveCombat = useTable((s) => s.saveCombat);
   const nextTurn = useTable((s) => s.nextTurn);
   const roll = useTable((s) => s.roll);
+  const patchToken = useTable((s) => s.patchToken);
   const toast = useToast();
   const [manualName, setManualName] = useState('');
 
@@ -70,6 +71,12 @@ export function CombatTracker() {
 
   const patchEntry = (id, patch) =>
     setEntries(entries.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)));
+
+  /** Repercute les PV modifies depuis le tracker sur le pion lie, pour que la carte reste a jour. */
+  const applyEntryHp = (entry, hp) => {
+    patchEntry(entry.id, { hp });
+    if (entry.tokenId) patchToken(entry.tokenId, { hp }).catch(() => {});
+  };
 
   const rollInitiative = async () => {
     const rolled = await Promise.all(
@@ -180,7 +187,7 @@ export function CombatTracker() {
                     type="button"
                     className="btn xs"
                     title="−5 PV"
-                    onClick={() => patchEntry(entry.id, { hp: Math.max(0, (entry.hp ?? 0) - 5) })}
+                    onClick={() => applyEntryHp(entry, Math.max(0, (entry.hp ?? 0) - 5))}
                   >
                     −5
                   </button>
@@ -188,9 +195,7 @@ export function CombatTracker() {
                     type="button"
                     className="btn xs"
                     title="+5 PV"
-                    onClick={() =>
-                      patchEntry(entry.id, { hp: Math.min(entry.maxHp, (entry.hp ?? 0) + 5) })
-                    }
+                    onClick={() => applyEntryHp(entry, Math.min(entry.maxHp, (entry.hp ?? 0) + 5))}
                   >
                     +5
                   </button>
