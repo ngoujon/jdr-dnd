@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTable } from '../lib/store.js';
+import { useAuth, useTable } from '../lib/store.js';
 import { TokenSprite } from './TokenSprite.jsx';
 
 const MIN_SCALE = 0.12;
@@ -22,10 +22,12 @@ export function MapCanvas({
 }) {
   const scene = useTable((s) => s.scene);
   const tokens = useTable((s) => s.tokens);
+  const characters = useTable((s) => s.characters);
   const ghosts = useTable((s) => s.ghosts);
   const cursors = useTable((s) => s.cursors);
   const pings = useTable((s) => s.pings);
   const isGM = useTable((s) => s.isGM);
+  const me = useAuth((s) => s.user);
   const moveTokens = useTable((s) => s.moveTokens);
   const dragToken = useTable((s) => s.dragToken);
   const moveCursor = useTable((s) => s.moveCursor);
@@ -45,6 +47,22 @@ export function MapCanvas({
   const lastCursorSend = useRef(0);
 
   const gridSize = scene?.gridSize || 70;
+
+  /** Miroir client de assertCanEdit (server/src/routes/tokens.js) : un joueur ne
+   *  deplace que les pions qu'il possede ou lies a un de ses personnages. */
+  const ownedCharacterIds = useMemo(
+    () => new Set(characters.filter((c) => c.ownerId === me?.id).map((c) => c.id)),
+    [characters, me],
+  );
+  const canMoveToken = useCallback(
+    (token) => {
+      if (isGM) return true;
+      if (token.locked) return false;
+      if (token.ownerId === me?.id) return true;
+      return Boolean(token.characterId && ownedCharacterIds.has(token.characterId));
+    },
+    [isGM, me, ownedCharacterIds],
+  );
 
   /* --- Conversions écran <-> scene --------------------------------------- */
 
@@ -252,7 +270,7 @@ export function MapCanvas({
   const onTokenPointerDown = (token) => (e) => {
     if (e.button !== 0 || tool === 'pan' || e.altKey) return;
     e.stopPropagation();
-    if (token.locked && !isGM) return;
+    if (!canMoveToken(token)) return;
 
     const nextSelection = e.shiftKey
       ? selection.includes(token.id)
