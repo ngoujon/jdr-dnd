@@ -350,6 +350,12 @@ export const useTable = create((set, get) => ({
   /* --- Personnages, documents, combat ------------------------------------ */
 
   async saveCharacter(characterId, patch) {
+    // Applique le patch localement tout de suite : sans ca, des modifications
+    // rapprochees sur des champs imbriques (abilities, proficiencies, ...) se
+    // basent chacune sur un etat local pas encore a jour et s'ecrasent entre elles.
+    set((state) => ({
+      characters: state.characters.map((c) => (c.id === characterId ? { ...c, ...patch } : c)),
+    }));
     const { character } = await api.patch(`/characters/${characterId}`, patch);
     set((state) => ({ characters: replace(state.characters, character) }));
     return character;
