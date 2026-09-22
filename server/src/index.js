@@ -75,3 +75,7 @@ const shutdown = async (signal) => {
 };
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Filet de securite : une erreur non rattrapee dans un handler socket ne doit
+// jamais couper le temps reel de toute la table pour tout le monde.
+process.on('unhandledRejection', (err) => console.error('[erreur] promesse non gérée', err));

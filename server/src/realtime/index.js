@@ -112,6 +112,7 @@ export const attachRealtime = (httpServer) => {
     });
 
     socket.on('campaign:leave', (campaignId) => {
+      if (typeof campaignId !== 'string') return;
       socket.leave(roomCampaign(campaignId));
       socket.leave(roomGM(campaignId));
       socket.data.campaigns.delete(campaignId);
@@ -120,22 +121,25 @@ export const attachRealtime = (httpServer) => {
 
     /** Deplacement fluide : diffuse sans ecrire en base (la position finale
      *  est persistee par l'appel REST PATCH /tokens à la fin du drag). */
-    socket.on('token:drag', ({ campaignId, tokenId, x, y }) => {
-      if (!socket.data.campaigns.has(campaignId)) return;
+    socket.on('token:drag', (payload) => {
+      const { campaignId, tokenId, x, y } = payload || {};
+      if (!campaignId || !socket.data.campaigns.has(campaignId)) return;
       socket.to(roomCampaign(campaignId)).emit('token:drag', { tokenId, x, y, byUserId: user.id });
     });
 
     /** Curseurs partages façon Roll20. */
-    socket.on('cursor:move', ({ campaignId, x, y }) => {
-      if (!socket.data.campaigns.has(campaignId)) return;
+    socket.on('cursor:move', (payload) => {
+      const { campaignId, x, y } = payload || {};
+      if (!campaignId || !socket.data.campaigns.has(campaignId)) return;
       socket.to(roomCampaign(campaignId)).emit('cursor:move', { userId: user.id, username: user.username, x, y });
     });
 
     /** Marqueur "regardez ici" (ping). */
-    socket.on('map:ping', ({ campaignId, x, y, sceneId, focus }) => {
-      if (!socket.data.campaigns.has(campaignId)) return;
-      const payload = { x, y, sceneId, userId: user.id, username: user.username, focus: Boolean(focus) && socket.data.isGM };
-      io.to(roomCampaign(campaignId)).emit('map:ping', payload);
+    socket.on('map:ping', (payload) => {
+      const { campaignId, x, y, sceneId, focus } = payload || {};
+      if (!campaignId || !socket.data.campaigns.has(campaignId)) return;
+      const result = { x, y, sceneId, userId: user.id, username: user.username, focus: Boolean(focus) && socket.data.isGM };
+      io.to(roomCampaign(campaignId)).emit('map:ping', result);
     });
 
     socket.on('chat:send', async (payload, ack) => {
