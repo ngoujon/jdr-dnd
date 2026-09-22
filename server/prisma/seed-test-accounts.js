@@ -1,6 +1,6 @@
 /**
  * Cree (ou met a jour le mot de passe de) des comptes de test pour le
- * developpement local : un compte admin et deux comptes joueurs. Idempotent.
+ * developpement local : un compte admin et trois comptes joueurs. Idempotent.
  * A lancer manuellement : node prisma/seed-test-accounts.js
  */
 import { PrismaClient } from '@prisma/client';
@@ -12,6 +12,7 @@ const accounts = [
   { email: 'admin@tabletop.local', username: 'Admin', password: '***REDACTED***', isAdmin: true },
   { email: 'joueur1@tabletop.local', username: 'Joueur1', password: '***REDACTED***', isAdmin: false },
   { email: 'joueur2@tabletop.local', username: 'Joueur2', password: '***REDACTED***', isAdmin: false },
+  { email: 'joueur3@tabletop.local', username: 'Joueur3', password: '***REDACTED***', isAdmin: false },
 ];
 
 const run = async () => {
