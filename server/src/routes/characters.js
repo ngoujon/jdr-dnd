@@ -129,6 +129,18 @@ charactersRouter.patch(
   asyncHandler(async (req, res) => {
     const { character: existing } = await loadCharacter(req, { forWrite: true });
     const data = parseBody(characterSchema, req.body);
+    const targetCampaignId = data.campaignId !== undefined ? data.campaignId : existing.campaignId;
+    const targetIsNpc = data.isNpc !== undefined ? data.isNpc : existing.isNpc;
+    if (data.campaignId !== undefined && data.campaignId !== existing.campaignId && data.campaignId) {
+      const membership = await prisma.membership.findUnique({
+        where: { campaignId_userId: { campaignId: data.campaignId, userId: existing.ownerId } },
+      });
+      if (!membership) throw forbidden("Le propriétaire du personnage ne fait pas partie de cette campagne");
+    }
+    if (targetIsNpc && targetCampaignId) {
+      const campaign = await prisma.campaign.findUnique({ where: { id: targetCampaignId } });
+      if (!campaign || campaign.gmId !== req.user.id) throw forbidden('Seul le MJ peut créer des PNJ');
+    }
     const character = await prisma.character.update({ where: { id: existing.id }, data });
     if (character.campaignId) {
       const payload = { character: withDerived(character) };

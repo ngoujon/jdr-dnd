@@ -12,12 +12,19 @@ export function CharactersPage() {
   const toast = useToast();
   const [confirm, confirmNode] = useConfirm();
   const [characters, setCharacters] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', class: 'Guerrier', race: 'Humain' });
+  const [form, setForm] = useState({ name: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
+  const [joining, setJoining] = useState(null);
+  const [joinCampaignId, setJoinCampaignId] = useState('');
 
   const load = async () => {
-    const { characters: list } = await api.get('/characters');
+    const [{ characters: list }, { campaigns: campaignList }] = await Promise.all([
+      api.get('/characters'),
+      api.get('/campaigns'),
+    ]);
     setCharacters(list);
+    setCampaigns(campaignList);
   };
 
   useEffect(() => {
@@ -32,6 +39,7 @@ export function CharactersPage() {
     try {
       await api.post('/characters', {
         name: form.name.trim(),
+        campaignId: form.campaignId || undefined,
         class: form.class,
         race: form.race,
         abilities: template?.abilities,
@@ -47,9 +55,22 @@ export function CharactersPage() {
         spellcasting: { ability: SPELL_ABILITY_BY_CLASS[form.class] || 'int', slots: {}, known: [] },
       });
       setCreating(false);
-      setForm({ name: '', class: 'Guerrier', race: 'Humain' });
+      setForm({ name: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
       await load();
       toast('Personnage créé', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  const joinCampaign = async () => {
+    if (!joining || !joinCampaignId) return;
+    try {
+      await api.patch(`/characters/${joining.id}`, { campaignId: joinCampaignId });
+      setJoining(null);
+      setJoinCampaignId('');
+      await load();
+      toast('Personnage associé à la campagne', 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -108,9 +129,23 @@ export function CharactersPage() {
                   {character.campaign?.name ? `Campagne : ${character.campaign.name}` : 'Sans campagne'}
                 </span>
               </div>
-              <button type="button" className="btn ghost sm" onClick={() => remove(character)}>
-                Supprimer
-              </button>
+              <div className="col" style={{ gap: 6, alignItems: 'flex-end' }}>
+                {!character.campaign && campaigns.length > 0 ? (
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    onClick={() => {
+                      setJoining(character);
+                      setJoinCampaignId(campaigns[0].id);
+                    }}
+                  >
+                    Rejoindre une campagne
+                  </button>
+                ) : null}
+                <button type="button" className="btn ghost sm" onClick={() => remove(character)}>
+                  Supprimer
+                </button>
+              </div>
             </article>
           ))}
           {characters?.length === 0 ? (
@@ -173,10 +208,60 @@ export function CharactersPage() {
               ))}
             </select>
           </div>
+          {campaigns.length > 0 ? (
+            <div className="field">
+              <label>Campagne (optionnel)</label>
+              <select
+                className="select"
+                value={form.campaignId}
+                onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
+              >
+                <option value="">Aucune — à associer plus tard</option>
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <p className="faint" style={{ margin: 0 }}>
             Caractéristiques, points de vie et maîtrises seront pre-remplis selon la classe choisie.
             Tout reste modifiable ensuite.
           </p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(joining)}
+        title="Rejoindre une campagne"
+        onClose={() => setJoining(null)}
+        size="sm"
+        footer={
+          <>
+            <button type="button" className="btn ghost" onClick={() => setJoining(null)}>
+              Annuler
+            </button>
+            <button type="button" className="btn primary" onClick={joinCampaign} disabled={!joinCampaignId}>
+              Rejoindre
+            </button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 12 }}>
+          <p className="faint" style={{ margin: 0 }}>
+            « {joining?.name} » rejoindra la campagne choisie et deviendra visible à la table.
+          </p>
+          <div className="field">
+            <label>Campagne</label>
+            <select className="select" value={joinCampaignId} onChange={(e) => setJoinCampaignId(e.target.value)}>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </Modal>
     </div>
