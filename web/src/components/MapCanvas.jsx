@@ -354,6 +354,22 @@ export function MapCanvas({
     [scene?.drawings, strokeDraft],
   );
 
+  /** Cercle de portee max (vitesse de deplacement) affiche autour du pion
+   *  possede par le joueur lorsqu'il est seul selectionne. */
+  const rangeRing = useMemo(() => {
+    if (selection.length !== 1) return null;
+    const token = tokens.find((t) => t.id === selection[0]);
+    if (!token || !isTokenOwned(token)) return null;
+    const character = characters.find((c) => c.id === token.characterId);
+    if (!character?.speed) return null;
+    const ghost = localDrag[token.id] || ghosts[token.id];
+    return {
+      cx: (ghost ? ghost.x : token.x) + token.width / 2,
+      cy: (ghost ? ghost.y : token.y) + token.height / 2,
+      radius: (character.speed / 5) * gridSize,
+    };
+  }, [selection, tokens, isTokenOwned, characters, localDrag, ghosts, gridSize]);
+
   const fogRects = useMemo(
     () => [...(scene?.fogReveals || []), ...(fogDraft ? [{ ...fogDraft, id: 'draft' }] : [])],
     [scene?.fogReveals, fogDraft],
@@ -497,6 +513,20 @@ export function MapCanvas({
 
         {aboveFogTokens.length ? (
           <div className="token-layer">{aboveFogTokens.map(renderTokenSprite)}</div>
+        ) : null}
+
+        {rangeRing ? (
+          <svg className="map-layer range-ring" width={scene.width} height={scene.height} aria-hidden="true">
+            <circle
+              cx={rangeRing.cx}
+              cy={rangeRing.cy}
+              r={rangeRing.radius}
+              fill="rgba(224, 167, 92, 0.08)"
+              stroke="#e0a75c"
+              strokeWidth={2 / view.k}
+              strokeDasharray={`${6 / view.k} ${5 / view.k}`}
+            />
+          </svg>
         ) : null}
 
         {marquee ? (
