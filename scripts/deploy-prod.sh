@@ -56,6 +56,7 @@ rsync -az --delete \
   --exclude='.env' \
   --exclude='.env.bak-*' \
   --exclude='uploads/' \
+  --exclude='sauvegardes/' \
   ./ "$SSH_HOST:$REMOTE_DIR/"
 
 # --- Reconstruction et redemarrage ----------------------------------------
