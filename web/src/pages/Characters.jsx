@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
-import { useAuth } from '../lib/store.js';
+import { useAuth, useTable } from '../lib/store.js';
 import { TopBar } from '../components/TopBar.jsx';
 import { Modal, Spinner, useToast, useConfirm } from '../components/Ui.jsx';
 import { StyledToken } from '../components/TokenStyler.jsx';
+import { CharacterSheet } from '../components/CharacterSheet.jsx';
+import { IconJoin, IconTrash, IconSheet } from '../components/Icons.jsx';
 import { CLASSES, RACES, TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier } from '../lib/dnd.js';
 
 /** Galerie de tous les personnages du joueur, toutes campagnes confondues. */
@@ -17,6 +19,7 @@ export function CharactersPage() {
   const [form, setForm] = useState({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
   const [joining, setJoining] = useState(null);
   const [joinCampaignId, setJoinCampaignId] = useState('');
+  const [openSheet, setOpenSheet] = useState(null);
 
   const load = async () => {
     const [{ characters: list }, { campaigns: campaignList }] = await Promise.all([
@@ -25,6 +28,10 @@ export function CharactersPage() {
     ]);
     setCharacters(list);
     setCampaigns(campaignList);
+    // La fiche lit et écrit via le store de la table : on l'alimente ici pour
+    // qu'elle fonctionne hors campagne. Les actions liées à une table (poser un
+    // pion, lancer les dés) se désactivent d'elles-mêmes, faute de scène.
+    useTable.setState({ characters: list });
   };
 
   useEffect(() => {
@@ -42,7 +49,7 @@ export function CharactersPage() {
     const conMod = modifier(template?.abilities?.con ?? 10);
     const hitDieMax = Number((template?.hitDice || '1d8').split('d')[1]);
     try {
-      await api.post('/characters', {
+      const created = await api.post('/characters', {
         name: form.name.trim(),
         campaignId: form.campaignId || undefined,
         class: form.class,
@@ -60,10 +67,14 @@ export function CharactersPage() {
         spellcasting: { ability: SPELL_ABILITY_BY_CLASS[form.class] || 'int', slots: {}, known: [] },
         details: form.playerName.trim() ? { playerName: form.playerName.trim() } : undefined,
       });
+      const { character } = created;
       setCreating(false);
       setForm({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
       await load();
-      toast('Personnage créé', 'success');
+      // La fiche s'ouvre dans la foulée : c'est le moment où l'on complète son
+      // personnage, pas à l'entrée dans une campagne.
+      setOpenSheet(character);
+      toast('Personnage créé — complétez sa fiche', 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -103,8 +114,8 @@ export function CharactersPage() {
           <div>
             <h1>Mes personnages</h1>
             <p className="muted">
-              Vos héros vous suivent d'une campagne à l'autre. Ouvrez une fiche depuis la table de
-              jeu pour la modifier en détail.
+              Vos héros vous suivent d'une campagne à l'autre. Ouvrez une fiche pour la compléter
+              ou la modifier, ici comme à la table de jeu.
             </p>
           </div>
           <button type="button" className="btn primary" onClick={openCreate}>
@@ -135,21 +146,38 @@ export function CharactersPage() {
                   {character.campaign?.name ? `Campagne : ${character.campaign.name}` : 'Sans campagne'}
                 </span>
               </div>
-              <div className="col" style={{ gap: 6, alignItems: 'flex-end' }}>
+              <div className="row card-actions">
+                <button
+                  type="button"
+                  className="btn ghost icon"
+                  onClick={() => setOpenSheet(character)}
+                  title="Voir et modifier la fiche"
+                  aria-label={`Voir et modifier la fiche de ${character.name}`}
+                >
+                  <IconSheet />
+                </button>
                 {!character.campaign && campaigns.length > 0 ? (
                   <button
                     type="button"
-                    className="btn ghost sm"
+                    className="btn ghost icon"
                     onClick={() => {
                       setJoining(character);
                       setJoinCampaignId(campaigns[0].id);
                     }}
+                    title="Rejoindre une campagne"
+                    aria-label={`Faire rejoindre une campagne à ${character.name}`}
                   >
-                    Rejoindre une campagne
+                    <IconJoin />
                   </button>
                 ) : null}
-                <button type="button" className="btn ghost sm" onClick={() => remove(character)}>
-                  Supprimer
+                <button
+                  type="button"
+                  className="btn ghost icon danger-hover"
+                  onClick={() => remove(character)}
+                  title="Supprimer le personnage"
+                  aria-label={`Supprimer ${character.name}`}
+                >
+                  <IconTrash />
                 </button>
               </div>
             </article>
@@ -165,6 +193,16 @@ export function CharactersPage() {
           ) : null}
         </div>
       </main>
+
+      {openSheet ? (
+        <CharacterSheet
+          character={openSheet}
+          onClose={async () => {
+            setOpenSheet(null);
+            await load().catch(() => {});
+          }}
+        />
+      ) : null}
 
       <Modal
         open={creating}

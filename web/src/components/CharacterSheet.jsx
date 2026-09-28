@@ -4,19 +4,24 @@ import {
   ABILITIES, SKILLS, CLASSES, RACES, BACKGROUNDS, ALIGNMENTS, DAMAGE_TYPES,
   TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier, proficiencyBonus, signed, levelFromXp,
 } from '../lib/dnd.js';
-import { Modal, Tabs, LazyInput, useToast, useConfirm } from './Ui.jsx';
+import { api } from '../lib/api.js';
+import { Modal, LazyInput, Spinner, InfoTip, useToast, useConfirm } from './Ui.jsx';
+import {
+  IconCharacter, IconSkills, IconCombat, IconSpells, IconGear, IconStory, IconLook, IconNotes,
+} from './Icons.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 import { TokenStyler } from './TokenStyler.jsx';
 import { CharacterPrintSheet } from './CharacterPrintSheet.jsx';
 
 const TABS = [
-  { key: 'main', label: 'Principal', icon: '✦' },
-  { key: 'skills', label: 'Compétences', icon: '◈' },
-  { key: 'combat', label: 'Combat', icon: '⚔' },
-  { key: 'spells', label: 'Sorts', icon: '✧' },
-  { key: 'gear', label: 'Équipement', icon: '⛁' },
-  { key: 'story', label: 'Histoire', icon: '❦' },
-  { key: 'look', label: 'Apparence', icon: '◍' },
+  { key: 'main', label: 'Personnage', icon: <IconCharacter /> },
+  { key: 'skills', label: 'Compétences', icon: <IconSkills /> },
+  { key: 'combat', label: 'Combat', icon: <IconCombat /> },
+  { key: 'spells', label: 'Sorts', icon: <IconSpells /> },
+  { key: 'gear', label: 'Équipement', icon: <IconGear /> },
+  { key: 'story', label: 'Histoire', icon: <IconStory /> },
+  { key: 'look', label: 'Apparence', icon: <IconLook /> },
+  { key: 'notes', label: 'Notes', icon: <IconNotes /> },
 ];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -57,9 +62,11 @@ export function CharacterSheet({ character: initial, onClose }) {
   };
 
   const doRoll = (formula, label, advantage = 'none') =>
-    roll({ formula, label, advantage, characterName: character.name }).then((res) => {
-      if (res?.error) toast(res.error, 'error');
-    });
+    roll({ formula, label, advantage, characterName: character.name })
+      .then((res) => {
+        if (res?.error) toast(res.error, 'error');
+      })
+      .catch((err) => toast(err.message, 'error'));
 
   const rollWithModifiers = (bonus, label) => (e) => {
     const advantage = e.shiftKey ? 'advantage' : e.ctrlKey || e.metaKey ? 'disadvantage' : 'none';
@@ -104,17 +111,17 @@ export function CharacterSheet({ character: initial, onClose }) {
 
   const dropOnMap = async () => {
     if (!scene) return toast('Aucune scène active', 'error');
-    const gridSize = scene.gridSize || 70;
+    const scalePx = scene.scalePx || 70;
     try {
       await createToken({
         name: character.name,
         imageUrl: character.tokenUrl || character.portraitUrl || null,
         style: character.style || {},
         characterId: character.id,
-        x: Math.round(scene.width / 2 / gridSize) * gridSize,
-        y: Math.round(scene.height / 2 / gridSize) * gridSize,
-        width: gridSize,
-        height: gridSize,
+        x: Math.round((scene.width - scalePx) / 2),
+        y: Math.round((scene.height - scalePx) / 2),
+        width: scalePx,
+        height: scalePx,
         hp: character.hp,
         maxHp: character.maxHp,
         ac: character.ac,
@@ -126,6 +133,19 @@ export function CharacterSheet({ character: initial, onClose }) {
   };
 
   const hpRatio = character.maxHp ? Math.max(0, Math.min(1, character.hp / character.maxHp)) : 0;
+  const tempRatio = character.maxHp
+    ? Math.max(0, Math.min(1 - hpRatio, (character.tempHp || 0) / character.maxHp))
+    : 0;
+  // La couleur porte l'information : on doit pouvoir juger l'état du personnage
+  // sans lire les chiffres, y compris de loin pendant une partie.
+  const [hpColor, hpState] =
+    character.hp <= 0
+      ? ['var(--blood)', 'À terre']
+      : hpRatio <= 0.25
+        ? ['var(--blood)', 'Critique']
+        : hpRatio <= 0.5
+          ? ['#d9a441', 'Blessé']
+          : ['#57a866', 'En forme'];
 
   return (
     <Modal open title="" onClose={onClose} size="sheet">
@@ -199,31 +219,56 @@ export function CharacterSheet({ character: initial, onClose }) {
           </div>
 
           <div className="sheet-vitals">
-            <div className="vital-hp">
-              <div className="hp-ring" style={{ '--ratio': hpRatio }}>
+            <div
+              className="vital-hp"
+              style={{ '--ratio': hpRatio, '--temp-ratio': tempRatio, '--hp-color': hpColor }}
+            >
+              <div className="hp-head">
+                <span className="label">Points de vie</span>
+                <span className="hp-state" style={{ color: hpColor }}>
+                  {hpState}
+                </span>
+              </div>
+
+              <div className="hp-values">
                 <LazyInput
-                  className="input center hp-current"
+                  className="input hp-current"
                   type="number"
                   value={character.hp}
                   onCommit={(v) => save({ hp: Number(v) || 0 })}
                   disabled={!editable}
                 />
                 <span className="hp-max">/ {character.maxHp}</span>
+                {character.tempHp > 0 ? (
+                  <span className="hp-temp-badge" title="Points de vie temporaires">
+                    +{character.tempHp} temp.
+                  </span>
+                ) : null}
               </div>
-              <div className="row" style={{ gap: 4, justifyContent: 'center' }}>
-                <button type="button" className="btn xs danger" onClick={() => adjustHp(-hpDelta)} disabled={!editable}>
+
+              <div className="hp-bar">
+                <span className="hp-bar-fill" />
+                {character.tempHp > 0 ? <span className="hp-bar-temp" /> : null}
+              </div>
+
+              <div className="hp-actions">
+                <button type="button" className="btn xs danger" onClick={() => adjustHp(-hpDelta)} disabled={!editable} title="Infliger des dégâts">
                   −
                 </button>
                 <input
                   className="input sm center"
-                  style={{ width: 46 }}
                   type="number"
                   value={hpDelta}
                   onChange={(e) => setHpDelta(Math.max(1, Number(e.target.value) || 1))}
+                  aria-label="Nombre de points de vie à retirer ou rendre"
                 />
-                <button type="button" className="btn xs" onClick={() => adjustHp(hpDelta)} disabled={!editable}>
+                <button type="button" className="btn xs" onClick={() => adjustHp(hpDelta)} disabled={!editable} title="Soigner">
                   +
                 </button>
+                <InfoTip
+                  help="Le − retire d'abord les points de vie temporaires, puis les points de vie réels. Le + ne dépasse jamais le maximum."
+                  example="Avec 12 PV et 4 temporaires, infliger 6 laisse 10 PV et 0 temporaire"
+                />
               </div>
             </div>
 
@@ -288,9 +333,23 @@ export function CharacterSheet({ character: initial, onClose }) {
           </div>
         </header>
 
-        <Tabs tabs={TABS} value={tab} onChange={setTab} compact />
+        <div className="sheet-main">
+          <nav className="sheet-rail" aria-label="Sections de la fiche">
+            {TABS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`sheet-rail-btn ${tab === item.key ? 'active' : ''}`}
+                aria-current={tab === item.key ? 'page' : undefined}
+                onClick={() => setTab(item.key)}
+              >
+                <span className="sheet-rail-icon">{item.icon}</span>
+                <span className="sheet-rail-label">{item.label}</span>
+              </button>
+            ))}
+          </nav>
 
-        <div className="sheet-body scroll">
+          <div className="sheet-body scroll">
           {tab === 'main' ? (
             <MainTab
               character={character}
@@ -322,6 +381,8 @@ export function CharacterSheet({ character: initial, onClose }) {
           {tab === 'gear' ? <GearTab character={character} editable={editable} save={save} /> : null}
           {tab === 'story' ? <StoryTab character={character} editable={editable} save={save} /> : null}
           {tab === 'look' ? <LookTab character={character} editable={editable} save={save} /> : null}
+          {tab === 'notes' ? <NotesTab characterId={character.id} isOwner={character.ownerId === me?.id} /> : null}
+          </div>
         </div>
       </div>
       <CharacterPrintSheet character={character} derived={derived} prof={prof} profs={profs} />
@@ -1088,6 +1149,73 @@ function GearTab({ character, editable, save }) {
   );
 }
 
+/**
+ * Notes privées attachées au personnage.
+ *
+ * Chacun ne voit que les siennes : le joueur ce qu'il garde pour lui, le MJ son
+ * mémo sur le personnage. C'est l'API qui le garantit — les notes ne font pas
+ * partie de la fiche diffusée à la table.
+ */
+function NotesTab({ characterId, isOwner }) {
+  const toast = useToast();
+  const [note, setNote] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNote(null);
+    api
+      .get(`/characters/${characterId}/notes`)
+      .then(({ note: loaded }) => {
+        if (!cancelled) setNote(loaded.body);
+      })
+      .catch((err) => {
+        if (!cancelled) toast(err.message, 'error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [characterId]);
+
+  if (note === null) return <Spinner label="Chargement des notes…" />;
+
+  return (
+    <div className="sheet-grid">
+      <section className="card pad">
+        <h4 className="notes-title">
+          {isOwner ? 'Mes notes' : 'Mémo du Maître du Jeu'}
+          <InfoTip
+            help={
+              isOwner
+                ? "Ces notes n'appartiennent qu'à vous : ni le Maître du Jeu ni les autres joueurs ne peuvent les lire."
+                : "Ce mémo n'appartient qu'à vous : le joueur ne peut pas le lire, et vous n'avez pas accès aux notes qu'il tient sur son personnage."
+            }
+            example={
+              isOwner
+                ? "Ne pas faire confiance à l'aubergiste, il a menti sur la crypte"
+                : 'A reconnu le symbole sur la porte — lui faire jouer le doute à la prochaine séance'
+            }
+          />
+        </h4>
+        <LazyInput
+          as="textarea"
+          className="textarea"
+          rows={16}
+          value={note}
+          onCommit={(v) => {
+            setNote(v);
+            api.put(`/characters/${characterId}/notes`, { body: v }).catch((err) => toast(err.message, 'error'));
+          }}
+          placeholder={
+            isOwner
+              ? 'Ce que votre personnage a appris, soupçonne, ou veut garder secret…'
+              : 'Ce que vous voulez retenir sur ce personnage, d’une séance à l’autre…'
+          }
+        />
+      </section>
+    </div>
+  );
+}
+
 function StoryTab({ character, editable, save }) {
   const details = character.details || {};
   const setDetail = (key, value) => save({ details: { ...details, [key]: value } });
@@ -1164,8 +1292,8 @@ function StoryTab({ character, editable, save }) {
             as="textarea"
             className="textarea"
             rows={4}
-            value={details.notes || ''}
-            onCommit={(v) => setDetail('notes', v)}
+            value={details.extraFeatures || ''}
+            onCommit={(v) => setDetail('extraFeatures', v)}
             disabled={!editable}
           />
         </div>

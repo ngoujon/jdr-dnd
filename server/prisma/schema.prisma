@@ -54,6 +54,7 @@ model User {
   assets         Asset[]
   messages       ChatMessage[]
   tokens         Token[]
+  characterNotes CharacterNote[]
 }
 
 model Campaign {
@@ -95,7 +96,7 @@ model Membership {
   @@index([userId])
 }
 
-/// Une scene = une carte de jeu (avec sa grille, son brouillard, ses pions).
+/// Une scene = une carte de jeu (avec son echelle, son brouillard, ses pions).
 model Scene {
   id         String   @id @default(cuid())
   campaignId String
@@ -108,15 +109,12 @@ model Scene {
   width           Int     @default(1920)
   height          Int     @default(1080)
 
-  gridEnabled Boolean @default(true)
-  gridSize    Int     @default(70)
-  gridColor   String  @default("#ffffff")
-  gridOpacity Float   @default(0.12)
-  gridOffsetX Int     @default(0)
-  gridOffsetY Int     @default(0)
-  /// Nombre d'unites (ex: metres) representees par une case.
-  gridUnit      Float  @default(1.5)
-  gridUnitLabel String @default("m")
+  /// Echelle de la carte : scalePx pixels representent scaleUnits unitLabel.
+  /// Sert a convertir les distances (mesure, portee de deplacement, lumiere) et
+  /// donne la taille de reference d'un pion. Les pions se placent librement.
+  scalePx    Int    @default(70)
+  scaleUnits Float  @default(1.5)
+  unitLabel  String @default("m")
 
   fogEnabled Boolean @default(false)
   /// Zones revelees : [{ type:'rect'|'circle'|'poly', ... }]
@@ -166,7 +164,7 @@ model Token {
   locked         Boolean @default(false)
   auraRadius     Float   @default(0)
   auraColor      String  @default("#c0873f")
-  /// Rayon de lumiere emis par le pion (en unites de grille)
+  /// Rayon de lumiere emis par le pion, dans l'unite de la scene
   lightRadius    Float   @default(0)
 
   createdAt DateTime @default(now())
@@ -237,9 +235,34 @@ model Character {
   campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tokens   Token[]
+  notes    CharacterNote[]
 
   @@index([campaignId])
   @@index([ownerId])
+}
+
+/// Notes libres attachees a un personnage, privees a leur auteur.
+///
+/// Elles vivent hors du modele Character parce que la fiche est diffusee en
+/// temps reel a toute la table : une note rangee dans `details` arriverait dans
+/// le navigateur du MJ meme masquee a l'ecran. Ici, chaque auteur n'a que ses
+/// propres notes, et elles ne sont lues que par un appel dedie.
+/// Le joueur y consigne ce qu'il veut garder pour lui ; le MJ y tient son memo
+/// sur le personnage. Aucun des deux ne lit celles de l'autre.
+model CharacterNote {
+  id          String @id @default(cuid())
+  characterId String
+  authorId    String
+  body        String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, authorId])
+  @@index([characterId])
 }
 
 model Asset {

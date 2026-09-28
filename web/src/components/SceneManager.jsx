@@ -64,11 +64,32 @@ export function SceneManager() {
     }
   };
 
+  /**
+   * Dimensions réelles d'une image, lues dans le navigateur.
+   *
+   * Les fichiers téléversés n'ont pas leurs dimensions en base : seules les
+   * cartes fournies avec l'application les portent. Plutôt que de décoder les
+   * images côté serveur, on interroge l'image au moment où elle devient un fond
+   * de carte — ce qui rattrape aussi les fonds téléversés avant ce changement.
+   */
+  const imageSize = (url) =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+
   const applyBackground = async (asset) => {
     setPicking(false);
+    const size =
+      asset.width && asset.height
+        ? { width: asset.width, height: asset.height }
+        : await imageSize(asset.url);
     await patchScene({
       backgroundUrl: asset.url,
-      ...(asset.width && asset.height ? { width: asset.width, height: asset.height } : {}),
+      // La scène épouse le fond : sans ça, la carte est rognée ou entourée de vide.
+      ...(size?.width && size?.height ? { width: size.width, height: size.height } : {}),
     });
   };
 
@@ -159,68 +180,39 @@ export function SceneManager() {
             </div>
           </div>
 
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={scene.gridEnabled}
-              onChange={(e) => patchScene({ gridEnabled: e.target.checked })}
-            />
-            Afficher la grille
-          </label>
+          <div className="field">
+            <label>Échelle de la carte</label>
+            <p className="faint hint">
+              Sert à convertir les distances : outil de mesure, portée de déplacement, taille
+              de référence d'un pion. Les pions se placent librement, sans alignement.
+            </p>
+          </div>
 
           <div className="grid-2">
             <div className="field">
-              <label>Case (px)</label>
+              <label>Longueur de référence (px)</label>
               <LazyInput
                 type="number"
-                value={scene.gridSize}
-                onCommit={(v) => patchScene({ gridSize: Math.max(10, Number(v) || 70) })}
+                value={scene.scalePx}
+                onCommit={(v) => patchScene({ scalePx: Math.max(10, Number(v) || 70) })}
               />
             </div>
             <div className="field">
-              <label>Unité par case</label>
+              <label>Vaut en distance réelle</label>
               <LazyInput
                 type="number"
-                value={scene.gridUnit}
-                onCommit={(v) => patchScene({ gridUnit: Math.max(0.1, Number(v) || 1.5) })}
+                value={scene.scaleUnits}
+                onCommit={(v) => patchScene({ scaleUnits: Math.max(0.1, Number(v) || 1.5) })}
               />
             </div>
             <div className="field">
               <label>Label de l'unité</label>
               <LazyInput
                 type="text"
-                value={scene.gridUnitLabel}
-                onCommit={(v) => patchScene({ gridUnitLabel: String(v || 'm').slice(0, 10) })}
+                value={scene.unitLabel}
+                onCommit={(v) => patchScene({ unitLabel: String(v || 'm').slice(0, 10) })}
               />
             </div>
-            <div className="field">
-              <label>Décalage X</label>
-              <LazyInput
-                type="number"
-                value={scene.gridOffsetX}
-                onCommit={(v) => patchScene({ gridOffsetX: Number(v) || 0 })}
-              />
-            </div>
-            <div className="field">
-              <label>Décalage Y</label>
-              <LazyInput
-                type="number"
-                value={scene.gridOffsetY}
-                onCommit={(v) => patchScene({ gridOffsetY: Number(v) || 0 })}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label>Opacite de la grille — {Math.round((scene.gridOpacity ?? 0.12) * 100)}%</label>
-            <input
-              type="range"
-              min="0"
-              max="0.8"
-              step="0.02"
-              value={scene.gridOpacity ?? 0.12}
-              onChange={(e) => patchScene({ gridOpacity: Number(e.target.value) })}
-            />
           </div>
 
           <label className="check">

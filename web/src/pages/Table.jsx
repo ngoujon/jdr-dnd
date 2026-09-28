@@ -101,7 +101,7 @@ export function TablePage() {
     const raw = event.dataTransfer.getData('application/x-asset');
     if (!raw || !scene) return;
     const asset = JSON.parse(raw);
-    const gridSize = scene.gridSize || 70;
+    const scalePx = scene.scalePx || 70;
     try {
       if (asset.kind === 'MAP') {
         toast('Utilisez le panneau Scènes pour changer le fond de carte', 'info');
@@ -113,10 +113,10 @@ export function TablePage() {
       await createToken({
         name: asset.name,
         imageUrl: asset.url,
-        x: Math.round(dropPoint.x / gridSize) * gridSize,
-        y: Math.round(dropPoint.y / gridSize) * gridSize,
-        width: gridSize,
-        height: gridSize,
+        x: Math.round(dropPoint.x - scalePx / 2),
+        y: Math.round(dropPoint.y - scalePx / 2),
+        width: scalePx,
+        height: scalePx,
       });
     } catch (err) {
       toast(err.message, 'error');
@@ -200,16 +200,16 @@ export function TablePage() {
                           toast('Onglet « Scènes » pour définir le fond de carte', 'info');
                           return;
                         }
-                        const gridSize = scene.gridSize || 70;
-                        const x = Math.round(scene.width / 2 / gridSize) * gridSize;
-                        const y = Math.round(scene.height / 2 / gridSize) * gridSize;
+                        const scalePx = scene.scalePx || 70;
+                        const x = Math.round((scene.width - scalePx) / 2);
+                        const y = Math.round((scene.height - scalePx) / 2);
                         await createToken({
                           name: asset.name,
                           imageUrl: asset.url,
                           x,
                           y,
-                          width: gridSize,
-                          height: gridSize,
+                          width: scalePx,
+                          height: scalePx,
                         });
                         viewRef.current?.centerOn?.(x, y);
                         toast('Pion ajouté au centre de la carte', 'success');
@@ -249,9 +249,9 @@ export function TablePage() {
                     className="btn xs"
                     onClick={async () => {
                       if (!scene) return toast('Aucune scène active', 'error');
-                      const gridSize = scene.gridSize || 70;
-                      const x = Math.round(scene.width / 2 / gridSize) * gridSize;
-                      const y = Math.round(scene.height / 2 / gridSize) * gridSize;
+                      const scalePx = scene.scalePx || 70;
+                      const x = Math.round((scene.width - scalePx) / 2);
+                      const y = Math.round((scene.height - scalePx) / 2);
                       try {
                         await createToken({
                           name: character.name,
@@ -260,8 +260,8 @@ export function TablePage() {
                           characterId: character.id,
                           x,
                           y,
-                          width: gridSize,
-                          height: gridSize,
+                          width: scalePx,
+                          height: scalePx,
                           hp: character.hp,
                           maxHp: character.maxHp,
                           ac: character.ac,

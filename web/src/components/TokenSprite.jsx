@@ -4,7 +4,7 @@ import { CONDITIONS } from '../lib/dnd.js';
 const conditionMeta = (key) => CONDITIONS.find((c) => c.key === key);
 
 /** Pion pose sur la carte : image ou pastille generee, nom, vie, états. */
-function TokenSpriteBase({ token, scale, selected, dimmed, onPointerDown, onDoubleClick, gridSize }) {
+function TokenSpriteBase({ token, scale, selected, dimmed, onPointerDown, onDoubleClick, scalePx }) {
   const style = token.style || {};
   const hasImage = Boolean(token.imageUrl);
   const hpRatio =
@@ -75,7 +75,7 @@ function TokenSpriteBase({ token, scale, selected, dimmed, onPointerDown, onDoub
       ) : null}
 
       {token.showNameplate && token.name ? (
-        <span className="token-name" style={{ fontSize: Math.max(9, Math.min(14, gridSize * 0.17)) / scale }}>
+        <span className="token-name" style={{ fontSize: Math.max(9, Math.min(14, scalePx * 0.17)) / scale }}>
           {token.name}
         </span>
       ) : null}

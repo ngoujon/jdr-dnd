@@ -44,6 +44,16 @@ const characterSchema = z.object({
   details: z.record(z.any()).optional(),
 });
 
+/**
+ * Fiche telle qu'elle sort de l'API.
+ *
+ * Elle ne contient jamais de notes : celles-ci vivent dans CharacterNote,
+ * privées à leur auteur, et ne sont lues que par /characters/:id/notes. Une
+ * fiche est diffusée en temps réel à toute la table, donc y ranger une note
+ * l'enverrait au navigateur du MJ même sans l'afficher.
+ */
+const view = withDerived;
+
 /** Vérifie l'accès : propriétaire, MJ de la campagne, ou fiche partagée. */
 const loadCharacter = async (req, { forWrite }) => {
   const character = await prisma.character.findUnique({
@@ -81,14 +91,14 @@ charactersRouter.get(
         include: { owner: { select: { id: true, username: true, avatarUrl: true } } },
         orderBy: [{ isNpc: 'asc' }, { name: 'asc' }],
       });
-      return res.json({ characters: characters.map(withDerived) });
+      return res.json({ characters: characters.map(view) });
     }
     const characters = await prisma.character.findMany({
       where: { ownerId: req.user.id },
       include: { campaign: { select: { id: true, name: true } } },
       orderBy: { updatedAt: 'desc' },
     });
-    res.json({ characters: characters.map(withDerived) });
+    res.json({ characters: characters.map(view) });
   }),
 );
 
@@ -123,11 +133,11 @@ charactersRouter.post(
     const shared = data.shared ?? (ownerId !== req.user.id ? false : undefined);
     const character = await prisma.character.create({ data: { ...data, shared, ownerId } });
     if (character.campaignId) {
-      const payload = { character: withDerived(character) };
+      const payload = { character: view(character) };
       if (character.isNpc) emitToGMs(character.campaignId, 'character:created', payload);
       else emitToCampaign(character.campaignId, 'character:created', payload);
     }
-    res.status(201).json({ character: withDerived(character) });
+    res.status(201).json({ character: view(character) });
   }),
 );
 
@@ -135,7 +145,7 @@ charactersRouter.get(
   '/:characterId',
   asyncHandler(async (req, res) => {
     const { character } = await loadCharacter(req, { forWrite: false });
-    res.json({ character: withDerived(character) });
+    res.json({ character: view(character) });
   }),
 );
 
@@ -158,11 +168,49 @@ charactersRouter.patch(
     }
     const character = await prisma.character.update({ where: { id: existing.id }, data });
     if (character.campaignId) {
-      const payload = { character: withDerived(character) };
+      const payload = { character: view(character) };
       if (character.isNpc) emitToGMs(character.campaignId, 'character:updated', payload);
       else emitToCampaign(character.campaignId, 'character:updated', payload);
     }
-    res.json({ character: withDerived(character) });
+    res.json({ character: view(character) });
+  }),
+);
+
+/* --- Notes privees -------------------------------------------------------- */
+
+/** Seuls le proprietaire et le MJ tiennent des notes sur un personnage : un
+ *  autre joueur consultant une fiche partagee n'a rien a y ecrire. */
+const assertMayTakeNotes = ({ isOwner, isGM }) => {
+  if (!isOwner && !isGM) throw forbidden('Vous ne pouvez pas prendre de notes sur ce personnage');
+};
+
+charactersRouter.get(
+  '/:characterId/notes',
+  asyncHandler(async (req, res) => {
+    const { character, isOwner, isGM } = await loadCharacter(req, { forWrite: false });
+    assertMayTakeNotes({ isOwner, isGM });
+    // La cle (personnage, auteur) garantit qu'on ne peut lire que ses propres
+    // notes : celles de l'autre partie ne sont jamais chargees ici.
+    const note = await prisma.characterNote.findUnique({
+      where: { characterId_authorId: { characterId: character.id, authorId: req.user.id } },
+    });
+    res.json({ note: { body: note?.body ?? '', updatedAt: note?.updatedAt ?? null } });
+  }),
+);
+
+charactersRouter.put(
+  '/:characterId/notes',
+  asyncHandler(async (req, res) => {
+    const { character, isOwner, isGM } = await loadCharacter(req, { forWrite: false });
+    assertMayTakeNotes({ isOwner, isGM });
+    const { body } = parseBody(z.object({ body: z.string().max(20000) }), req.body);
+    const note = await prisma.characterNote.upsert({
+      where: { characterId_authorId: { characterId: character.id, authorId: req.user.id } },
+      create: { characterId: character.id, authorId: req.user.id, body },
+      update: { body },
+    });
+    // Aucune diffusion temps reel : une note ne doit atteindre que son auteur.
+    res.json({ note: { body: note.body, updatedAt: note.updatedAt } });
   }),
 );
 
@@ -197,7 +245,7 @@ charactersRouter.post(
         maxHp: character.maxHp,
       });
     }
-    res.json({ character: withDerived(character) });
+    res.json({ character: view(character) });
   }),
 );
 
@@ -209,7 +257,7 @@ charactersRouter.post(
     const character = await prisma.character.create({
       data: { ...rest, name: `${source.name} (copié)`, ownerId: req.user.id },
     });
-    res.status(201).json({ character: withDerived(character) });
+    res.status(201).json({ character: view(character) });
   }),
 );
 

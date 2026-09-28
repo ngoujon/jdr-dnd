@@ -282,7 +282,7 @@ const run = async () => {
   }
 
   // Pions posés dans la taverne : les héros assis autour de la seconde table.
-  const grid = 70;
+  const step = 70; // espacement de placement des pions de demonstration
   const placements = [
     { character: heroes[0], x: 467, y: 385 },
     { character: heroes[1], x: 663, y: 385 },
@@ -299,8 +299,8 @@ const run = async () => {
         ownerId: spot.character.ownerId,
         x: spot.x,
         y: spot.y,
-        width: grid,
-        height: grid,
+        width: step,
+        height: step,
         hp: spot.character.hp,
         maxHp: spot.character.maxHp,
         ac: spot.character.ac,
@@ -317,8 +317,8 @@ const run = async () => {
       characterId: npcs[0].id,
       x: 690,
       y: 160,
-      width: grid,
-      height: grid,
+      width: step,
+      height: step,
       hp: npcs[0].hp,
       maxHp: npcs[0].maxHp,
       ac: npcs[0].ac,
@@ -333,10 +333,10 @@ const run = async () => {
       imageUrl: npcs[2].tokenUrl,
       style: npcs[2].style,
       characterId: npcs[2].id,
-      x: 11 * grid,
-      y: 7 * grid,
-      width: grid * 1.5,
-      height: grid * 1.5,
+      x: 11 * step,
+      y: 7 * step,
+      width: step * 1.5,
+      height: step * 1.5,
       hp: npcs[2].hp,
       maxHp: npcs[2].maxHp,
       ac: npcs[2].ac,

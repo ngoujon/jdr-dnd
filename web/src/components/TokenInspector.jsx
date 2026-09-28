@@ -4,12 +4,14 @@ import { CONDITIONS } from '../lib/dnd.js';
 import { Modal, LazyInput } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 
+/// Multiples de la longueur de reference de la scene, nommes d'apres les
+/// categories de taille D&D 5e.
 const SIZES = [
-  { label: '½', squares: 0.5 },
-  { label: '1', squares: 1 },
-  { label: '2', squares: 2 },
-  { label: '3', squares: 3 },
-  { label: '4', squares: 4 },
+  { label: 'TP', factor: 0.5, title: 'Très petite' },
+  { label: 'M', factor: 1, title: 'Moyenne' },
+  { label: 'G', factor: 2, title: 'Grande' },
+  { label: 'TG', factor: 3, title: 'Très grande' },
+  { label: 'Gig', factor: 4, title: 'Gigantesque' },
 ];
 
 /** Panneau d'édition du pion selectionne. */
@@ -23,7 +25,7 @@ export function TokenInspector({ tokenId, onClose }) {
   const [picking, setPicking] = useState(false);
 
   if (!token) return null;
-  const gridSize = scene?.gridSize || 70;
+  const scalePx = scene?.scalePx || 70;
   const character = characters.find((c) => c.id === token.characterId);
   const set = (patch) => patchToken(token.id, patch).catch(() => {});
 
@@ -55,8 +57,9 @@ export function TokenInspector({ tokenId, onClose }) {
             <button
               key={size.label}
               type="button"
-              className={Math.abs(token.width / gridSize - size.squares) < 0.05 ? 'active' : ''}
-              onClick={() => set({ width: gridSize * size.squares, height: gridSize * size.squares })}
+              title={size.title}
+              className={Math.abs(token.width / scalePx - size.factor) < 0.05 ? 'active' : ''}
+              onClick={() => set({ width: scalePx * size.factor, height: scalePx * size.factor })}
             >
               {size.label}
             </button>

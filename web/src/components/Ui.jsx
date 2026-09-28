@@ -159,6 +159,37 @@ export function Tabs({ tabs, value, onChange, compact }) {
   );
 }
 
+/**
+ * Petit bouton (i) qui explique un champ au survol et au focus clavier.
+ *
+ * Le contenu est rendu en permanence dans le DOM plutôt qu'au survol : un
+ * lecteur d'écran doit pouvoir atteindre l'aide, et l'attribut `title` natif
+ * ne se déclenche ni au clavier ni sur mobile.
+ */
+export function InfoTip({ help, example }) {
+  return (
+    <span className="infotip">
+      <button type="button" className="infotip-btn" aria-label={`Aide : ${help}`}>
+        i
+      </button>
+      <span className="infotip-bubble" role="tooltip">
+        <span>{help}</span>
+        {example ? <em>Exemple : {example}</em> : null}
+      </span>
+    </span>
+  );
+}
+
+/** Intitulé de champ accompagné de sa bulle d'aide. */
+export function FieldLabel({ children, help, example }) {
+  return (
+    <span className="field-label">
+      {children}
+      {help ? <InfoTip help={help} example={example} /> : null}
+    </span>
+  );
+}
+
 /** Champ qui ne remonte la valeur qu'à la validation (évite un aller-retour réseau par frappe). */
 export function LazyInput({ value, onCommit, as = 'input', className = 'input', ...rest }) {
   const [draft, setDraft] = useState(value ?? '');

@@ -43,7 +43,9 @@ export function MapCanvas({
   const [localDrag, setLocalDrag] = useState({});
   const dragState = useRef(null);
 
-  const gridSize = scene?.gridSize || 70;
+  /** Longueur de reference de la scene : scalePx pixels valent scaleUnits unites.
+   *  Sert d'echelle pour les distances et de taille par defaut d'un pion. */
+  const scalePx = scene?.scalePx || 70;
 
   /** Miroir client de assertCanEdit (server/src/routes/tokens.js) : un joueur ne
    *  deplace que les pions qu'il possede ou lies a un de ses personnages. */
@@ -101,16 +103,6 @@ export function MapCanvas({
       };
     },
     [view],
-  );
-
-  /** Aligne une coordonnee sur la grille, en tenant compte du decalage de l'axe. */
-  const snap = useCallback(
-    (value, axis) => {
-      if (!scene?.gridEnabled) return value;
-      const offset = (axis === 'y' ? scene.gridOffsetY : scene.gridOffsetX) || 0;
-      return Math.round((value - offset) / gridSize) * gridSize + offset;
-    },
-    [scene, gridSize],
   );
 
   /** Recentre la carte dans la fenetre. */
@@ -326,8 +318,8 @@ export function MapCanvas({
       if (Math.abs(dx) > 2 || Math.abs(dy) > 2) state.moved = true;
       state.positions = state.origins.map((o) => ({
         id: o.id,
-        x: snap(o.x + dx, 'x'),
-        y: snap(o.y + dy, 'y'),
+        x: Math.round(o.x + dx),
+        y: Math.round(o.y + dy),
       }));
       for (const pos of state.positions) dragToken(pos.id, pos.x, pos.y);
       setLocalDrag({ ...Object.fromEntries(state.positions.map((p2) => [p2.id, p2])) });
@@ -354,21 +346,22 @@ export function MapCanvas({
     [scene?.drawings, strokeDraft],
   );
 
-  /** Cercle de portee max (vitesse de deplacement) affiche autour du pion
-   *  possede par le joueur lorsqu'il est seul selectionne. */
+  /** Cercle de portee max (vitesse de deplacement) affiche autour du pion seul
+   *  selectionne. Le joueur le voit sur ses propres pions ; le MJ le voit sur
+   *  n'importe quel pion lie a un personnage, pour arbitrer les deplacements. */
   const rangeRing = useMemo(() => {
     if (selection.length !== 1) return null;
     const token = tokens.find((t) => t.id === selection[0]);
-    if (!token || !isTokenOwned(token)) return null;
+    if (!token || !(isGM || isTokenOwned(token))) return null;
     const character = characters.find((c) => c.id === token.characterId);
     if (!character?.speed) return null;
     const ghost = localDrag[token.id] || ghosts[token.id];
     return {
       cx: (ghost ? ghost.x : token.x) + token.width / 2,
       cy: (ghost ? ghost.y : token.y) + token.height / 2,
-      radius: (character.speed / 5) * gridSize,
+      radius: (character.speed / 5) * scalePx,
     };
-  }, [selection, tokens, isTokenOwned, characters, localDrag, ghosts, gridSize]);
+  }, [selection, tokens, isGM, isTokenOwned, characters, localDrag, ghosts, scalePx]);
 
   const fogRects = useMemo(
     () => [...(scene?.fogReveals || []), ...(fogDraft ? [{ ...fogDraft, id: 'draft' }] : [])],
@@ -399,7 +392,7 @@ export function MapCanvas({
         key={token.id}
         token={shown}
         scale={view.k}
-        gridSize={gridSize}
+        scalePx={scalePx}
         selected={selection.includes(token.id)}
         dimmed={!token.visible}
         onPointerDown={onTokenPointerDown(token)}
@@ -425,8 +418,8 @@ export function MapCanvas({
 
   const measureDistance = measure
     ? Math.round(
-        (Math.hypot(measure.to.x - measure.from.x, measure.to.y - measure.from.y) / gridSize) *
-          (scene.gridUnit || 1.5),
+        (Math.hypot(measure.to.x - measure.from.x, measure.to.y - measure.from.y) / scalePx) *
+          (scene.scaleUnits || 1.5),
       )
     : 0;
 
@@ -448,30 +441,6 @@ export function MapCanvas({
       >
         {scene.backgroundUrl ? (
           <img className="map-bg" src={scene.backgroundUrl} alt="" draggable={false} />
-        ) : null}
-
-        {scene.gridEnabled ? (
-          <svg className="map-layer" width={scene.width} height={scene.height} aria-hidden="true">
-            <defs>
-              <pattern
-                id="grid"
-                width={gridSize}
-                height={gridSize}
-                patternUnits="userSpaceOnUse"
-                x={scene.gridOffsetX || 0}
-                y={scene.gridOffsetY || 0}
-              >
-                <path
-                  d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`}
-                  fill="none"
-                  stroke={scene.gridColor || '#ffffff'}
-                  strokeOpacity={scene.gridOpacity ?? 0.12}
-                  strokeWidth="1"
-                />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
         ) : null}
 
         <svg className="map-layer" width={scene.width} height={scene.height} aria-hidden="true">
@@ -573,7 +542,7 @@ export function MapCanvas({
               textAnchor="middle"
               style={{ paintOrder: 'stroke', stroke: '#05070a', strokeWidth: 4 / view.k }}
             >
-              {measureDistance} {scene.gridUnitLabel || 'm'}
+              {measureDistance} {scene.unitLabel || 'm'}
             </text>
           </svg>
         ) : null}

@@ -936,31 +936,72 @@
 .mini-field strong { text-align: center; font-size: 15px; }
 
 .sheet-vitals { display: flex; gap: 10px; align-items: flex-start; }
-.vital-hp { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-.hp-ring {
-  position: relative;
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
+.vital-hp {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background:
-    conic-gradient(var(--blood) calc(var(--ratio) * 360deg), var(--ink-700) 0),
-    var(--ink-900);
-  box-shadow: inset 0 0 0 7px var(--ink-850);
+  gap: 6px;
+  align-items: stretch;
+  min-width: 188px;
+  padding: 8px 10px 10px;
+  background: var(--ink-900);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
+.hp-head { display: flex; align-items: baseline; gap: 6px; }
+.hp-head .label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.hp-state { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.hp-values { display: flex; align-items: baseline; gap: 4px; }
 .hp-current {
-  width: 54px;
+  width: 62px;
   background: transparent;
   border: 0;
-  font-size: 21px;
+  font-size: 26px;
   font-weight: 700;
   font-family: var(--font-display);
   padding: 0;
+  color: var(--hp-color, var(--text));
+  text-align: right;
 }
-.hp-max { font-size: 11px; color: var(--text-faint); }
+.hp-max { font-size: 13px; color: var(--text-faint); }
+.hp-temp-badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--sky, #9fd8ff);
+  border: 1px solid currentColor;
+}
+
+/* Jauge : la couleur bascule du vert au rouge selon --ratio, ce qui rend l'état
+   du personnage lisible d'un coup d'oeil sans avoir à lire les chiffres. */
+.hp-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--ink-700);
+  overflow: hidden;
+}
+.hp-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--ratio) * 100%);
+  background: var(--hp-color, var(--blood));
+  transition: width 0.18s ease-out, background-color 0.18s ease-out;
+}
+.hp-bar-temp {
+  position: absolute;
+  inset: 0 auto 0 calc(var(--ratio) * 100%);
+  width: calc(var(--temp-ratio) * 100%);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--sky, #9fd8ff) 0 3px,
+    transparent 3px 6px
+  );
+  opacity: 0.85;
+}
+.hp-actions { display: flex; gap: 4px; align-items: center; }
+.hp-actions .input { width: 44px; }
 .vital-box {
   width: 78px;
   padding: 8px 6px;
@@ -977,6 +1018,42 @@
 .vital-box.clickable { cursor: pointer; }
 .vital-box.clickable:hover { border-color: var(--brass); }
 .sheet-head-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* Rail de navigation de la fiche : raccourci permanent vers chaque section. */
+.sheet-main { display: flex; flex: 1; min-height: 0; }
+.sheet-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 6px;
+  border-right: 1px solid var(--line);
+  background: var(--ink-900);
+  flex: 0 0 auto;
+}
+.sheet-rail-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sheet-rail-btn:hover { background: var(--ink-850); color: var(--text); }
+.sheet-rail-btn.active { background: var(--ink-800); color: var(--brass-bright); }
+.sheet-rail-icon { display: flex; font-size: 18px; }
+.sheet-rail-label { overflow: hidden; }
+
+/* Sous 900px la fiche manque de largeur : le rail garde les icônes seules. */
+@media (max-width: 900px) {
+  .sheet-rail-label { display: none; }
+  .sheet-rail-btn { justify-content: center; padding: 8px; }
+}
 
 .sheet-body { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
 .sheet-grid { display: flex; flex-direction: column; gap: 12px; }
@@ -1241,3 +1318,73 @@
 .ps-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .ps-table th, .ps-table td { border: 1px solid #ccc; padding: 1mm 2mm; text-align: left; }
 .ps-textblock { white-space: pre-wrap; font-size: 11px; min-height: 6mm; }
+
+/* ------------------------------------------------------- Bulles d'aide --- */
+
+/* Le contenu reste dans le DOM et n'est masqué que visuellement : l'aide doit
+   être atteignable au clavier et par un lecteur d'écran, ce que le `title`
+   natif ne permet pas. */
+.infotip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 5px; }
+.infotip-btn {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 10px;
+  font-style: italic;
+  font-family: var(--font-display);
+  line-height: 1;
+  cursor: help;
+}
+.infotip-btn:hover, .infotip-btn:focus-visible { color: var(--brass-bright); border-color: var(--brass); }
+
+/* La bulle s'ouvre vers le bas et vers la droite : les conteneurs de la fiche
+   défilent (`overflow: auto`) et rogneraient une bulle sortant par le haut,
+   et une bulle centrée déborderait à gauche quand le champ est en début de
+   ligne. La police est réinitialisée car un intitulé de champ est souvent un
+   titre, rendu en capitales dans la police d'affichage. */
+.infotip-bubble {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: -6px;
+  font-family: var(--font-body);
+  font-variant: normal;
+  z-index: 40;
+  width: max-content;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease-out;
+}
+.infotip-bubble em { color: var(--text-dim); font-size: 11px; }
+.infotip:hover .infotip-bubble,
+.infotip-btn:focus-visible + .infotip-bubble {
+  opacity: 1;
+  visibility: visible;
+}
+
+.field-label { display: inline-flex; align-items: center; }
+
+/* Actions d'une carte de personnage : icônes seules, libellé porté par le
+   title et aria-label pour rester compréhensible et accessible. */
+.card-actions { gap: 2px; align-items: center; }
+.btn.icon.danger-hover:hover { color: var(--danger); border-color: var(--danger); }
+.notes-title { display: flex; align-items: center; font-size: 13px; margin-bottom: 10px; }

@@ -327,7 +327,13 @@ export const useTable = create((set, get) => ({
   },
 
   roll(options) {
-    return emitAck('dice:roll', { campaignId: get().campaignId, ...options });
+    // La fiche s'ouvre aussi hors campagne, depuis « Mes personnages » : il n'y
+    // a alors aucun salon ou annoncer le resultat.
+    const { campaignId } = get();
+    if (!campaignId) {
+      return Promise.reject(new Error('Rejoignez une table de jeu pour lancer les dés'));
+    }
+    return emitAck('dice:roll', { campaignId, ...options });
   },
 
   ping(x, y, focus = false) {

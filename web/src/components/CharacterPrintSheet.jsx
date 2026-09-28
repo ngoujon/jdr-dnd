@@ -223,7 +223,7 @@ export function CharacterPrintSheet({ character, derived, prof, profs }) {
         </div>
         <div className="ps-section">
           <h4>Capacités et traits supplémentaires</h4>
-          <div className="ps-textblock">{details.notes || '—'}</div>
+          <div className="ps-textblock">{details.extraFeatures || '—'}</div>
         </div>
         <div className="ps-section">
           <h4>Trésor</h4>
