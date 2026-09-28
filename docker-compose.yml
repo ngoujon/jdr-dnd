@@ -37,6 +37,8 @@ services:
   web:
     build:
       context: ./web
+      args:
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-dev}
     restart: unless-stopped
     depends_on:
       - server

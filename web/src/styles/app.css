@@ -225,6 +225,15 @@
   text-decoration: none;
 }
 .brand:hover { text-decoration: none; color: var(--brass-bright); }
+.brand-version {
+  font-family: var(--font-body, inherit);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
 .topbar-title { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .topbar-title strong { font-family: var(--font-display); font-size: 14px; }
 .topbar-title span { font-size: 11px; }

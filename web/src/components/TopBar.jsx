@@ -17,6 +17,9 @@ export function TopBar({ title, subtitle, children }) {
           </text>
         </svg>
         <span>Table Ronde</span>
+        <span className="brand-version" title={`Version déployée : ${import.meta.env.VITE_APP_VERSION || 'dev'}`}>
+          {import.meta.env.VITE_APP_VERSION || 'dev'}
+        </span>
       </Link>
 
       {title ? (
