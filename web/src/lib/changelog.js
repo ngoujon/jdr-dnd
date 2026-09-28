@@ -2,6 +2,21 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.5.0',
+    date: '2026-09-28',
+    changes: [
+      "Suppression de la grille : les pions se placent librement, une échelle de scène remplace le quadrillage",
+      "La scène reprend les dimensions du fond de carte choisi",
+      "Le Maître du Jeu voit la portée de déplacement des personnages joueurs",
+      "Notes privées par personnage : chacun ne voit que les siennes, joueur comme MJ",
+      "Fiche de personnage accessible et modifiable depuis « Mes personnages », et ouverte dès la création",
+      "Fiche réorganisée : navigation par icônes, points de vie lisibles d'un coup d'œil, bulles d'aide sur les champs",
+      "Conversations privées en fenêtres réductibles, avec rappel de l'historique",
+      "Menu « Mes campagnes » dans l'en-tête, pour changer de table sans repasser par l'accueil",
+      "Page d'accueil enrichie et inscription avec confirmation du mot de passe",
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-09-28',
     changes: [

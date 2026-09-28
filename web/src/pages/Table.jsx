@@ -11,6 +11,7 @@ import { SceneManager } from '../components/SceneManager.jsx';
 import { AssetLibrary } from '../components/AssetLibrary.jsx';
 import { TokenInspector } from '../components/TokenInspector.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
+import { WhisperDock } from '../components/WhisperDock.jsx';
 import { Tabs, Spinner, useToast, Avatar } from '../components/Ui.jsx';
 
 const TOOLS = [
@@ -397,6 +398,8 @@ export function TablePage() {
       {openCharacter ? (
         <CharacterSheet character={openCharacter} onClose={() => setOpenCharacter(null)} />
       ) : null}
+
+      <WhisperDock />
     </div>
   );
 }

@@ -45,6 +45,9 @@
   --font-mono: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, monospace;
 
   --topbar-h: 56px;
+  /* Largeur du panneau lateral de la table : les fenetres de conversation s'y
+     adossent pour ne pas recouvrir le chat. */
+  --right-rail-w: 352px;
 }
 
 * { box-sizing: border-box; }

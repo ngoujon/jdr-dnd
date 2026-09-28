@@ -1,8 +1,102 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { api } from '../lib/api.js';
 import { useAuth } from '../lib/store.js';
 import { Avatar, Modal } from './Ui.jsx';
+import { IconCampaigns, IconPlus, IconJoin, IconSheet, IconCharacter } from './Icons.jsx';
 import { CHANGELOG, APP_VERSION } from '../lib/changelog.js';
+
+/**
+ * Menu « Mes campagnes » de l'en-tête.
+ *
+ * Il évite le détour par le tableau de bord pour passer d'une campagne à une
+ * autre. La liste n'est chargée qu'à l'ouverture : l'en-tête est présent sur
+ * toutes les pages, y compris la table de jeu, où une requête au montage serait
+ * du trafic inutile.
+ */
+function CampaignMenu() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [campaigns, setCampaigns] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    api
+      .get('/campaigns')
+      .then(({ campaigns: list }) => setCampaigns(list))
+      .catch(() => setCampaigns([]));
+
+    const onPointerDown = (e) => {
+      if (!ref.current?.contains(e.target)) setOpen(false);
+    };
+    const onKeyDown = (e) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const go = (to, state) => {
+    setOpen(false);
+    navigate(to, state ? { state } : undefined);
+  };
+
+  return (
+    <div className="topbar-menu" ref={ref}>
+      <button
+        type="button"
+        className="btn ghost sm with-icon"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        <IconCampaigns />
+        Mes campagnes
+      </button>
+
+      {open ? (
+        <div className="menu-pop" role="menu">
+          <div className="menu-section">
+            {campaigns === null ? <span className="menu-empty">Chargement…</span> : null}
+            {campaigns?.length === 0 ? (
+              <span className="menu-empty">Aucune campagne pour l'instant</span>
+            ) : null}
+            {campaigns?.map((campaign) => (
+              <button
+                key={campaign.id}
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => go(`/campagne/${campaign.id}`)}
+              >
+                <span className="ellipsis">{campaign.name}</span>
+                {campaign.isGM ? <em className="menu-tag">MJ</em> : null}
+              </button>
+            ))}
+          </div>
+
+          <div className="menu-section bordered">
+            <button type="button" className="menu-item" role="menuitem" onClick={() => go('/', { create: true })}>
+              <IconPlus />
+              Créer une campagne
+            </button>
+            <button type="button" className="menu-item" role="menuitem" onClick={() => go('/', { join: true })}>
+              <IconJoin />
+              Rejoindre avec un code
+            </button>
+            <button type="button" className="menu-item" role="menuitem" onClick={() => go('/')}>
+              <IconSheet />
+              Voir toutes mes campagnes
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function TopBar({ title, subtitle, children }) {
   const user = useAuth((s) => s.user);
@@ -69,7 +163,9 @@ export function TopBar({ title, subtitle, children }) {
       {children}
 
       <div className="topbar-user">
-        <Link to="/personnages" className="btn ghost sm">
+        <CampaignMenu />
+        <Link to="/personnages" className="btn ghost sm with-icon">
+          <IconCharacter />
           Mes personnages
         </Link>
         <Link to="/compte" className="topbar-avatar" title="Mon compte">

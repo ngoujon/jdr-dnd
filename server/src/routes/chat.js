@@ -30,6 +30,38 @@ chatRouter.get(
   }),
 );
 
+/**
+ * Historique d'une conversation privée avec un autre membre.
+ *
+ * Le fil général n'est chargé que sur ses derniers messages : rouvrir une
+ * conversation doit en retrouver le contenu même s'il a défilé depuis
+ * longtemps. On ne renvoie que les messages échangés entre l'appelant et son
+ * correspondant, quel que soit le rôle de l'appelant.
+ */
+chatRouter.get(
+  '/conversations/:userId',
+  asyncHandler(async (req, res) => {
+    const { limit } = parseBody(
+      z.object({ limit: z.coerce.number().int().min(1).max(200).default(100) }),
+      req.query,
+    );
+    const other = req.params.userId;
+    const messages = await prisma.chatMessage.findMany({
+      where: {
+        campaignId: req.campaign.id,
+        OR: [
+          { userId: req.user.id, whisperTo: other },
+          { userId: other, whisperTo: req.user.id },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+    });
+    res.json({ messages: messages.reverse() });
+  }),
+);
+
 chatRouter.delete(
   '/',
   asyncHandler(async (req, res) => {

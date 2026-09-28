@@ -5,7 +5,7 @@ import {
   TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier, proficiencyBonus, signed, levelFromXp,
 } from '../lib/dnd.js';
 import { api } from '../lib/api.js';
-import { Modal, LazyInput, Spinner, InfoTip, useToast, useConfirm } from './Ui.jsx';
+import { Modal, LazyInput, Spinner, InfoTip, FieldLabel, useToast, useConfirm } from './Ui.jsx';
 import {
   IconCharacter, IconSkills, IconCombat, IconSpells, IconGear, IconStory, IconLook, IconNotes,
 } from './Icons.jsx';
@@ -456,7 +456,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
         <h4 className="panel-title">État</h4>
         <div className="grid-3">
           <div className="field">
-            <label>PV max</label>
+            <label><FieldLabel help={"Points de vie au maximum, une fois complètement reposé. Il augmente à chaque niveau selon le dé de vie de la classe et le modificateur de Constitution."} example={"Un guerrier niveau 3 avec +2 en Constitution : 10 + 2 × (1d10 + 2)"}>PV max</FieldLabel></label>
             <LazyInput
               className="input"
               type="number"
@@ -466,7 +466,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
             />
           </div>
           <div className="field">
-            <label>PV temporaires</label>
+            <label><FieldLabel help={"Points de vie encaissés en premier, qui ne se cumulent pas entre eux : une nouvelle source remplace la précédente si elle est plus élevée. Ils disparaissent au repos long."} example={"Le sort Armure du mage n'en donne pas, mais Mots de guérison trompeurs en accorde 1d4 + modificateur"}>PV temporaires</FieldLabel></label>
             <LazyInput
               className="input"
               type="number"
@@ -476,7 +476,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
             />
           </div>
           <div className="field">
-            <label>Dés de vie</label>
+            <label><FieldLabel help={"Dé lancé pour récupérer des points de vie pendant un repos court, un par niveau. Il dépend de la classe."} example={"d6 pour un magicien, d10 pour un guerrier, d12 pour un barbare"}>Dés de vie</FieldLabel></label>
             <LazyInput
               className="input"
               value={character.hitDice}
@@ -503,7 +503,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
         <h4 className="panel-title">Identité</h4>
         <div className="grid-2">
           <div className="field">
-            <label>Historique</label>
+            <label><FieldLabel help={"Le passé du personnage avant l'aventure. Il accorde deux maîtrises de compétence et un trait de personnalité."} example={"Sage, Criminel, Soldat, Artisan de guilde"}>Historique</FieldLabel></label>
             <select
               className="select"
               value={character.background}
@@ -519,7 +519,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
             </select>
           </div>
           <div className="field">
-            <label>Alignement</label>
+            <label><FieldLabel help={"La boussole morale du personnage : comment il tranche entre la loi et la liberté, le bien et l'égoïsme."} example={"Chaotique bon : il désobéit aux règles quand elles nuisent aux gens"}>Alignement</FieldLabel></label>
             <select
               className="select"
               value={character.alignment}
@@ -535,7 +535,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
             </select>
           </div>
           <div className="field">
-            <label>Sous-classe</label>
+            <label><FieldLabel help={"La spécialisation choisie à l'intérieur de la classe, généralement au niveau 2 ou 3."} example={"Pour un barde : Collège du savoir ; pour un guerrier : Champion"}>Sous-classe</FieldLabel></label>
             <LazyInput
               className="input"
               value={character.subclass}
@@ -544,7 +544,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
             />
           </div>
           <div className="field">
-            <label>Nom du joueur</label>
+            <label><FieldLabel help={"La personne qui incarne ce personnage. Utile quand plusieurs joueurs partagent la table."} example={"Camille"}>Nom du joueur</FieldLabel></label>
             <LazyInput
               className="input"
               value={details.playerName || ''}
@@ -553,7 +553,14 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
             />
           </div>
           <div className="field">
-            <label>Expérience (niveau {levelFromXp(character.xp)})</label>
+            <label>
+              <FieldLabel
+                help="Points d'expérience cumulés. Le niveau affiché à côté est celui que ce total permet d'atteindre."
+                example="2 700 XP correspond au niveau 4"
+              >
+                Expérience (niveau {levelFromXp(character.xp)})
+              </FieldLabel>
+            </label>
             <LazyInput
               className="input"
               type="number"

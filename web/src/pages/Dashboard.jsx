@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/store.js';
 import { TopBar } from '../components/TopBar.jsx';
 import { Modal, Spinner, useToast, useConfirm, Avatar } from '../components/Ui.jsx';
+import { IconTrash } from '../components/Icons.jsx';
 import { copyToClipboard } from '../lib/dnd.js';
 
 export function Dashboard() {
   const user = useAuth((s) => s.user);
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [confirm, confirmNode] = useConfirm();
   const [campaigns, setCampaigns] = useState(null);
@@ -26,6 +28,16 @@ export function Dashboard() {
   useEffect(() => {
     load().catch((err) => toast(err.message, 'error'));
   }, []);
+
+  // Le menu « Mes campagnes » de l'en-tête amène ici avec l'intention déjà
+  // exprimée. On la consomme aussitôt, sinon un retour arrière rouvrirait la
+  // modale sans que l'utilisateur l'ait demandé.
+  useEffect(() => {
+    if (!location.state) return;
+    if (location.state.create) setCreating(true);
+    if (location.state.join) setJoining(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state]);
 
   const create = async () => {
     if (!form.name.trim()) return;
@@ -164,8 +176,16 @@ export function Dashboard() {
                   </Link>
                 ) : null}
                 <span className="spacer" />
-                <button type="button" className="btn ghost sm" onClick={() => leave(campaign)}>
-                  {campaign.isGM ? 'Supprimer' : 'Quitter'}
+                <button
+                  type="button"
+                  className="btn ghost icon danger-hover"
+                  onClick={() => leave(campaign)}
+                  title={campaign.isGM ? 'Supprimer la campagne' : 'Quitter la campagne'}
+                  aria-label={
+                    campaign.isGM ? `Supprimer ${campaign.name}` : `Quitter ${campaign.name}`
+                  }
+                >
+                  <IconTrash />
                 </button>
               </footer>
             </article>

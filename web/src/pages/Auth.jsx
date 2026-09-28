@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/store.js';
+import { IconCampaigns, IconSheet, IconStory, IconCombat } from '../components/Icons.jsx';
 
 /** Ecran d'entree : connexion et creation de compte. */
 export function AuthPage({ mode }) {
@@ -8,10 +9,17 @@ export function AuthPage({ mode }) {
   const register = useAuth((s) => s.register);
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ identifier: '', email: '', username: '', password: '' });
+  const [form, setForm] = useState({
+    identifier: '',
+    email: '',
+    username: '',
+    password: '',
+    confirm: '',
+  });
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const [reveal, setReveal] = useState(false);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -19,6 +27,13 @@ export function AuthPage({ mode }) {
     e.preventDefault();
     setError(null);
     setFieldErrors({});
+    // Une faute de frappe sur un mot de passe masqué ne se voit qu'à la
+    // connexion suivante : on la rattrape ici plutôt que côté serveur, qui ne
+    // reçoit jamais la confirmation.
+    if (mode === 'register' && form.password !== form.confirm) {
+      setFieldErrors({ confirm: ['Les deux mots de passe ne correspondent pas'] });
+      return;
+    }
     setBusy(true);
     try {
       if (mode === 'login') await login(form.identifier, form.password);
@@ -49,11 +64,43 @@ export function AuthPage({ mode }) {
             partagés en temps réel avec toute votre bande.
           </p>
           <ul className="auth-features">
-            <li>Cartes avec grille, brouillard de guerre et dessin</li>
-            <li>Fiches D&amp;D 5e complètes, calculées automatiquement</li>
-            <li>Espace de préparation privé pour le Maître du Jeu</li>
-            <li>Chat, jets de dés et ordre d'initiative partagés</li>
+            <li>
+              <IconCampaigns />
+              <span>
+                <strong>Cartes vivantes</strong>
+                Pions déplaçables au pixel près, brouillard de guerre, dessin partagé et mesure des
+                distances.
+              </span>
+            </li>
+            <li>
+              <IconSheet />
+              <span>
+                <strong>Fiches D&amp;D 5e complètes</strong>
+                Modificateurs, maîtrises et valeurs passives calculés pour vous. Un clic sur une
+                compétence lance le dé.
+              </span>
+            </li>
+            <li>
+              <IconStory />
+              <span>
+                <strong>Un espace privé pour le MJ</strong>
+                Scènes préparées à l'avance, PNJ cachés, documents secrets et jets discrets.
+              </span>
+            </li>
+            <li>
+              <IconCombat />
+              <span>
+                <strong>Le combat, sans paperasse</strong>
+                Ordre d'initiative partagé, tour par tour, points de vie synchronisés avec les pions.
+              </span>
+            </li>
           </ul>
+
+          <ol className="auth-steps">
+            <li>Créez votre compte</li>
+            <li>Rejoignez une campagne avec le code du MJ</li>
+            <li>Composez votre personnage et entrez en jeu</li>
+          </ol>
         </div>
       </div>
 
@@ -114,18 +161,44 @@ export function AuthPage({ mode }) {
 
           <div className="field">
             <label htmlFor="password">Mot de passe</label>
-            <input
-              id="password"
-              className="input"
-              type="password"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              value={form.password}
-              onChange={set('password')}
-              required
-            />
+            <div className="input-with-action">
+              <input
+                id="password"
+                className="input"
+                type={reveal ? 'text' : 'password'}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                value={form.password}
+                onChange={set('password')}
+                required
+              />
+              <button
+                type="button"
+                className="btn ghost xs"
+                onClick={() => setReveal((v) => !v)}
+                aria-pressed={reveal}
+              >
+                {reveal ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
             {fieldErrors.password ? <span className="field-error">{fieldErrors.password[0]}</span> : null}
             {mode === 'register' ? <span className="faint">8 caractères minimum.</span> : null}
           </div>
+
+          {mode === 'register' ? (
+            <div className="field">
+              <label htmlFor="confirm">Confirmer le mot de passe</label>
+              <input
+                id="confirm"
+                className="input"
+                type={reveal ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={form.confirm}
+                onChange={set('confirm')}
+                required
+              />
+              {fieldErrors.confirm ? <span className="field-error">{fieldErrors.confirm[0]}</span> : null}
+            </div>
+          ) : null}
 
           <button type="submit" className="btn primary block" disabled={busy}>
             {busy ? 'Un instant…' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
