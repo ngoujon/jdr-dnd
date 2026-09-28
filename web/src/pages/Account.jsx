@@ -9,6 +9,7 @@ export function AccountPage() {
   const updateProfile = useAuth((s) => s.updateProfile);
   const toast = useToast();
   const [username, setUsername] = useState(user?.username || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
   const [busy, setBusy] = useState(false);
 
@@ -16,7 +17,7 @@ export function AccountPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await updateProfile({ username });
+      await updateProfile({ username, email });
       toast('Profil mis à jour', 'success');
     } catch (err) {
       toast(err.message, 'error');
@@ -81,7 +82,13 @@ export function AccountPage() {
           </div>
           <div className="field">
             <label>Adresse e-mail</label>
-            <input className="input" value={user?.email || ''} disabled />
+            <input
+              className="input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
           <button type="submit" className="btn primary" disabled={busy}>
             Enregistrer

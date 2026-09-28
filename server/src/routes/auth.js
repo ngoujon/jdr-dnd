@@ -77,16 +77,30 @@ authRouter.patch(
   asyncHandler(async (req, res) => {
     const data = parseBody(
       z.object({
-        username: z.string().min(3).max(24).optional(),
+        username: z
+          .string()
+          .min(3, 'Au moins 3 caractères')
+          .max(24, 'Au plus 24 caractères')
+          .regex(/^[\w .'-]+$/u, 'Caracteres autorises : lettres, chiffres, espace, . _ - \'')
+          .optional(),
+        email: z.string().email('Adresse e-mail invalide').optional(),
         avatarUrl: z.string().max(500).nullish(),
       }),
       req.body,
     );
-    if (data.username) {
+    if (data.email) data.email = data.email.toLowerCase().trim();
+    if (data.username || data.email) {
       const clash = await prisma.user.findFirst({
-        where: { username: data.username, NOT: { id: req.user.id } },
+        where: {
+          NOT: { id: req.user.id },
+          OR: [data.username ? { username: data.username } : undefined, data.email ? { email: data.email } : undefined].filter(
+            Boolean,
+          ),
+        },
       });
-      if (clash) throw conflict('Ce pseudo est déjà pris');
+      if (clash) {
+        throw conflict(clash.email === data.email ? 'Cette adresse est déjà utilisée' : 'Ce pseudo est déjà pris');
+      }
     }
     const user = await prisma.user.update({ where: { id: req.user.id }, data });
     res.json({ user: publicUser(user) });

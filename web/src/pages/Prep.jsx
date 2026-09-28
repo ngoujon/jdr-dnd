@@ -7,8 +7,9 @@ import { SceneManager } from '../components/SceneManager.jsx';
 import { HandoutPanel } from '../components/HandoutPanel.jsx';
 import { AssetLibrary } from '../components/AssetLibrary.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
-import { Tabs, Spinner, Avatar, LazyInput, useToast, useConfirm } from '../components/Ui.jsx';
+import { Modal, Tabs, Spinner, Avatar, LazyInput, useToast, useConfirm } from '../components/Ui.jsx';
 import { StyledToken } from '../components/TokenStyler.jsx';
+import { copyToClipboard, CLASSES, RACES, TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier } from '../lib/dnd.js';
 
 const TABS = [
   { key: 'scenes', label: 'Scènes & cartes' },
@@ -34,6 +35,8 @@ export function PrepPage() {
   const [confirm, confirmNode] = useConfirm();
   const [tab, setTab] = useState('scenes');
   const [openCharacter, setOpenCharacter] = useState(null);
+  const [creatingFor, setCreatingFor] = useState(null);
+  const [newCharForm, setNewCharForm] = useState({ name: '', class: 'Guerrier', race: 'Humain' });
 
   useEffect(() => {
     open(campaignId);
@@ -55,6 +58,39 @@ export function PrepPage() {
     try {
       const npc = await createCharacter({ name: 'Nouveau PNJ', isNpc: true, shared: false, maxHp: 11, hp: 11, ac: 12 });
       setOpenCharacter(npc);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  const createCharacterFor = async () => {
+    if (!creatingFor || !newCharForm.name.trim()) return;
+    const template = TEMPLATES[newCharForm.class];
+    const conMod = modifier(template?.abilities?.con ?? 10);
+    const hitDieMax = Number((template?.hitDice || '1d8').split('d')[1]);
+    try {
+      const character = await createCharacter({
+        name: newCharForm.name.trim(),
+        ownerId: creatingFor.userId,
+        class: newCharForm.class,
+        race: newCharForm.race,
+        abilities: template?.abilities,
+        ac: template?.ac ?? 10,
+        hitDice: template?.hitDice ?? '1d8',
+        hitDiceLeft: 1,
+        maxHp: hitDieMax + conMod,
+        hp: hitDieMax + conMod,
+        proficiencies: {
+          saves: Object.fromEntries((template?.saves || []).map((s) => [s, 1])),
+          skills: Object.fromEntries((template?.skills || []).map((s) => [s, 1])),
+        },
+        spellcasting: { ability: SPELL_ABILITY_BY_CLASS[newCharForm.class] || 'int', slots: {}, known: [] },
+        details: { playerName: creatingFor.username },
+      });
+      setCreatingFor(null);
+      setNewCharForm({ name: '', class: 'Guerrier', race: 'Humain' });
+      setOpenCharacter(character);
+      toast('Personnage créé — visible uniquement par vous et ' + creatingFor.username, 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -194,9 +230,9 @@ export function PrepPage() {
                   <button
                     type="button"
                     className="btn xs"
-                    onClick={() => {
-                      navigator.clipboard?.writeText(campaign.joinCode);
-                      toast('Code copié', 'success');
+                    onClick={async () => {
+                      const ok = await copyToClipboard(campaign.joinCode);
+                      toast(ok ? 'Code copié' : 'Impossible de copier le code', ok ? 'success' : 'error');
                     }}
                   >
                     Copier
@@ -225,6 +261,16 @@ export function PrepPage() {
                       </div>
                       {member.userId !== campaign.gmId ? (
                         <div className="row" style={{ gap: 6 }}>
+                          <button
+                            type="button"
+                            className="btn xs ghost"
+                            onClick={() => {
+                              setCreatingFor(member);
+                              setNewCharForm({ name: '', class: 'Guerrier', race: 'Humain' });
+                            }}
+                          >
+                            Créer une fiche
+                          </button>
                           <select
                             className="select sm"
                             value={member.role}
@@ -253,6 +299,66 @@ export function PrepPage() {
       {openCharacter ? (
         <CharacterSheet character={openCharacter} onClose={() => setOpenCharacter(null)} />
       ) : null}
+
+      <Modal
+        open={Boolean(creatingFor)}
+        title={`Créer une fiche pour ${creatingFor?.username || ''}`}
+        onClose={() => setCreatingFor(null)}
+        footer={
+          <>
+            <button type="button" className="btn ghost" onClick={() => setCreatingFor(null)}>
+              Annuler
+            </button>
+            <button type="button" className="btn primary" onClick={createCharacterFor} disabled={!newCharForm.name.trim()}>
+              Créer
+            </button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 12 }}>
+          <p className="faint" style={{ margin: 0 }}>
+            Cette fiche ne sera visible et modifiable que par vous et {creatingFor?.username}.
+          </p>
+          <div className="field">
+            <label>Nom du personnage</label>
+            <input
+              className="input"
+              value={newCharForm.name}
+              onChange={(e) => setNewCharForm({ ...newCharForm, name: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && createCharacterFor()}
+              placeholder="Aelith Ombrelune"
+            />
+          </div>
+          <div className="field">
+            <label>Classe</label>
+            <select
+              className="select"
+              value={newCharForm.class}
+              onChange={(e) => setNewCharForm({ ...newCharForm, class: e.target.value })}
+            >
+              {CLASSES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Race</label>
+            <select
+              className="select"
+              value={newCharForm.race}
+              onChange={(e) => setNewCharForm({ ...newCharForm, race: e.target.value })}
+            >
+              {RACES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

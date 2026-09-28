@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useAuth } from '../lib/store.js';
 import { TopBar } from '../components/TopBar.jsx';
 import { Modal, Spinner, useToast, useConfirm, Avatar } from '../components/Ui.jsx';
+import { copyToClipboard } from '../lib/dnd.js';
 
 export function Dashboard() {
   const user = useAuth((s) => s.user);
@@ -143,9 +144,9 @@ export function Dashboard() {
                     <button
                       type="button"
                       className="btn xs ghost"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(campaign.joinCode);
-                        toast('Code copié', 'success');
+                      onClick={async () => {
+                        const ok = await copyToClipboard(campaign.joinCode);
+                        toast(ok ? 'Code copié' : 'Impossible de copier le code', ok ? 'success' : 'error');
                       }}
                     >
                       Copier

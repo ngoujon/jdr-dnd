@@ -95,18 +95,33 @@ charactersRouter.get(
 charactersRouter.post(
   '/',
   asyncHandler(async (req, res) => {
-    const data = parseBody(characterSchema.extend({ name: z.string().min(1).max(60) }), req.body);
+    const { ownerId: requestedOwnerId, ...data } = parseBody(
+      characterSchema.extend({ name: z.string().min(1).max(60), ownerId: z.string().optional() }),
+      req.body,
+    );
+    let ownerId = req.user.id;
     if (data.campaignId) {
-      const membership = await prisma.membership.findUnique({
-        where: { campaignId_userId: { campaignId: data.campaignId, userId: req.user.id } },
-      });
-      if (!membership) throw forbidden("Vous ne faites pas partie de cette campagne");
       const campaign = await prisma.campaign.findUnique({ where: { id: data.campaignId } });
+      if (!campaign) throw notFound('Campagne introuvable');
+      if (requestedOwnerId && requestedOwnerId !== req.user.id) {
+        if (campaign.gmId !== req.user.id) {
+          throw forbidden('Seul le MJ peut créer un personnage pour un autre joueur');
+        }
+        ownerId = requestedOwnerId;
+      }
+      const membership = await prisma.membership.findUnique({
+        where: { campaignId_userId: { campaignId: data.campaignId, userId: ownerId } },
+      });
+      if (!membership) throw forbidden("Ce joueur ne fait pas partie de cette campagne");
       if (data.isNpc && campaign.gmId !== req.user.id) {
         throw forbidden('Seul le MJ peut créer des PNJ');
       }
+    } else if (requestedOwnerId && requestedOwnerId !== req.user.id) {
+      throw forbidden('Impossible d’assigner un personnage sans campagne');
     }
-    const character = await prisma.character.create({ data: { ...data, ownerId: req.user.id } });
+    // Un personnage créé par le MJ pour un autre joueur reste privé (MJ + joueur) sauf partage explicite.
+    const shared = data.shared ?? (ownerId !== req.user.id ? false : undefined);
+    const character = await prisma.character.create({ data: { ...data, shared, ownerId } });
     if (character.campaignId) {
       const payload = { character: withDerived(character) };
       if (character.isNpc) emitToGMs(character.campaignId, 'character:created', payload);

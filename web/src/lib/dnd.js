@@ -101,6 +101,32 @@ export const levelFromXp = (xp) => {
   return level;
 };
 
+export const copyToClipboard = async (text) => {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // API présente mais refusée (hors contexte sécurisé, permission…) : on tente le repli.
+    }
+  }
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.position = 'fixed';
+  el.style.opacity = '0';
+  document.body.appendChild(el);
+  el.focus();
+  el.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(el);
+  return ok;
+};
+
 /** Modeles de personnage pour demarrer une fiche en un clic. */
 export const TEMPLATES = {
   Guerrier: { hitDice: '1d10', ac: 16, abilities: { str: 16, dex: 13, con: 15, int: 10, wis: 12, cha: 8 }, saves: ['str', 'con'], skills: ['athletics', 'perception'] },
