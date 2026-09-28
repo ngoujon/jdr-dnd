@@ -969,13 +969,15 @@
 .mini-field > span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); }
 .mini-field strong { text-align: center; font-size: 15px; }
 
-.sheet-vitals { display: flex; gap: 10px; align-items: flex-start; }
+/* Les valeurs vitales se replient plutot que de pousser la fiche au-dela de la
+   largeur de la modale, ce qui ferait apparaitre un defilement horizontal. */
+.sheet-vitals { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
 .vital-hp {
   display: flex;
   flex-direction: column;
   gap: 6px;
   align-items: stretch;
-  min-width: 188px;
+  min-width: 172px;
   padding: 8px 10px 10px;
   background: var(--ink-900);
   border: 1px solid var(--line);
@@ -1404,15 +1406,16 @@
   text-transform: none;
   letter-spacing: normal;
   white-space: normal;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.12s ease-out;
+  /* `display: none` et non `visibility: hidden` : une bulle simplement invisible
+     reste prise en compte dans le debordement de son conteneur, ce qui faisait
+     apparaitre une barre de defilement horizontale en permanence sur la fiche. */
+  display: none;
 }
 .infotip-bubble em { color: var(--text-dim); font-size: 11px; }
 .infotip:hover .infotip-bubble,
 .infotip-btn:focus-visible + .infotip-bubble {
-  opacity: 1;
-  visibility: visible;
+  display: flex;
+  animation: fade-in 0.12s ease-out;
 }
 
 .field-label { display: inline-flex; align-items: center; }

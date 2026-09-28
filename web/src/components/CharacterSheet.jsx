@@ -273,7 +273,7 @@ export function CharacterSheet({ character: initial, onClose }) {
             </div>
 
             <div className="vital-box">
-              <span className="label">CA</span>
+              <span className="label">CA<InfoTip help={"Classe d'armure : le score qu'un attaquant doit atteindre ou depasser sur son jet pour toucher."} example={"Cotte de mailles (16) + bouclier (+2) = 18"} /></span>
               <LazyInput
                 className="input center big"
                 type="number"
@@ -288,11 +288,11 @@ export function CharacterSheet({ character: initial, onClose }) {
               onClick={rollWithModifiers(derived.initiative ?? 0, 'Initiative')}
               title="Lancer l'initiative (Maj = avantage)"
             >
-              <span className="label">Init.</span>
+              <span className="label">Init.<InfoTip help={"Bonus ajoute au d20 au debut d'un combat pour determiner l'ordre des tours. Il vaut le modificateur de Dexterite."} example={"+2 de Dexterite : on lance 1d20+2"} /></span>
               <strong className="big mono">{signed(derived.initiative ?? 0)}</strong>
             </button>
             <div className="vital-box">
-              <span className="label">Vitesse</span>
+              <span className="label">Vitesse<InfoTip help={"Distance parcourue en un tour, en pieds. Le cercle affiche sur la carte quand le pion est selectionne en decoule."} example={"30 pour un humain, 25 pour un nain"} /></span>
               <LazyInput
                 className="input center big"
                 type="number"
@@ -453,7 +453,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
       </section>
 
       <section className="card pad">
-        <h4 className="panel-title">État</h4>
+        <h4 className="panel-title">État<InfoTip help={"Points de vie, des de vie et jets de mort : tout ce qui decrit la condition physique du personnage en cours de partie."} example={"A 0 point de vie, on lance un jet de sauvegarde contre la mort a chaque tour"} /></h4>
         <div className="grid-3">
           <div className="field">
             <label><FieldLabel help={"Points de vie au maximum, une fois complètement reposé. Il augmente à chaque niveau selon le dé de vie de la classe et le modificateur de Constitution."} example={"Un guerrier niveau 3 avec +2 en Constitution : 10 + 2 × (1d10 + 2)"}>PV max</FieldLabel></label>
@@ -500,7 +500,7 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
       </section>
 
       <section className="card pad">
-        <h4 className="panel-title">Identité</h4>
+        <h4 className="panel-title">Identité<InfoTip help={"Qui est le personnage sur le papier : son passe, sa morale, sa specialisation et sa progression."} example={"Sage, Neutre bon, College du savoir"} /></h4>
         <div className="grid-2">
           <div className="field">
             <label><FieldLabel help={"Le passé du personnage avant l'aventure. Il accorde deux maîtrises de compétence et un trait de personnalité."} example={"Sage, Criminel, Soldat, Artisan de guilde"}>Historique</FieldLabel></label>
@@ -637,6 +637,10 @@ function SkillsTab({ character, profs, derived, editable, save, rollWithModifier
       <p className="faint" style={{ marginTop: 0 }}>
         Cliquez sur la pastille pour alterner entre aucune maîtrise, maîtrise et expertise. Maj +
         clic sur un jet pour un avantage, Ctrl + clic pour un désavantage.
+        <InfoTip
+          help="La maîtrise ajoute le bonus de maîtrise au jet, l'expertise le double. Elles viennent de la classe et de l'historique."
+          example="Un roublard niveau 5 avec expertise en Discrétion ajoute +6 au lieu de +3"
+        />
       </p>
       <ul className="skill-list">
         {SKILLS.map((skill) => {
@@ -687,7 +691,7 @@ function CombatTab({ character, editable, save, doRoll, derived }) {
     <div className="col" style={{ gap: 12 }}>
       <section className="card pad">
         <div className="row">
-          <h4 className="panel-title">Attaques</h4>
+          <h4 className="panel-title">Attaques<InfoTip help={"Armes et sorts d'attaque, avec leur bonus au jet et leurs degats. Un clic sur une ligne lance le de et annonce le resultat dans le chat."} example={"Rapiere — bonus +5, degats 1d8+3 perforant"} /></h4>
           <span className="spacer" />
           {editable ? (
             <button type="button" className="btn xs primary" onClick={add}>
@@ -798,7 +802,7 @@ function CombatTab({ character, editable, save, doRoll, derived }) {
       </section>
 
       <section className="card pad">
-        <h4 className="panel-title">Capacités &amp; traits</h4>
+        <h4 className="panel-title">Capacités &amp; traits<InfoTip help={"Les capacites utilisables en jeu : dons de classe, traits raciaux, pouvoirs a usage limite."} example={"Inspiration bardique — 1d6, 3 usages par repos court"} /></h4>
         <FeatureList character={character} editable={editable} save={save} />
       </section>
     </div>
@@ -879,7 +883,7 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
       <section className="card pad">
         <div className="grid-3">
           <div className="field">
-            <label>Caractéristique</label>
+            <label><FieldLabel help={"La caracteristique qui alimente les sorts de la classe. Elle determine le degre de difficulte des sauvegardes et le bonus d'attaque des sorts."} example={"Charisme pour un barde, Intelligence pour un magicien, Sagesse pour un clerc"}>Caractéristique</FieldLabel></label>
             <select
               className="select"
               value={sc.ability || 'int'}
@@ -913,7 +917,7 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
           </button>
         </div>
         <div className="field" style={{ maxWidth: 240, marginTop: 10 }}>
-          <label>Sorts à préparer chaque jour</label>
+          <label><FieldLabel help={"Nombre de sorts que le personnage choisit apres un repos long. Les classes a sorts connus, comme le barde, laissent ce champ a zero."} example={"Un clerc niveau 3 avec +3 en Sagesse en prepare 6"}>Sorts à préparer chaque jour</FieldLabel></label>
           <LazyInput
             className="input"
             type="number"
@@ -925,7 +929,7 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
       </section>
 
       <section className="card pad">
-        <h4 className="panel-title">Emplacements de sorts</h4>
+        <h4 className="panel-title">Emplacements de sorts<InfoTip help={"Nombre de sorts lancables par niveau avant un repos long. Ils se rechargent tous au repos long."} example={"Un barde niveau 3 a 4 emplacements de niveau 1 et 2 de niveau 2"} /></h4>
         <div className="slot-grid">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => {
             const slot = sc.slots?.[level] || { max: 0, used: 0 };
@@ -958,7 +962,7 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
 
       <section className="card pad">
         <div className="row">
-          <h4 className="panel-title">Sorts connus</h4>
+          <h4 className="panel-title">Sorts connus<InfoTip help={"Les sorts que le personnage peut lancer. Les classes a preparation choisissent chaque jour dans cette liste."} example={"Mot de guerison, Vague tonnante, Image silencieuse"} /></h4>
           <span className="spacer" />
           {editable ? (
             <button
@@ -1045,7 +1049,7 @@ function GearTab({ character, editable, save }) {
   return (
     <div className="col" style={{ gap: 12 }}>
       <section className="card pad">
-        <h4 className="panel-title">Bourse</h4>
+        <h4 className="panel-title">Bourse<InfoTip help={"La monnaie transportee. En D&D 5e, 1 piece d'or vaut 10 pieces d'argent et 100 pieces de cuivre."} example={"35 po, 12 pa, 40 pc"} /></h4>
         <div className="currency-row">
           {[
             ['pp', 'Platine'],
@@ -1070,7 +1074,7 @@ function GearTab({ character, editable, save }) {
 
       <section className="card pad">
         <div className="row">
-          <h4 className="panel-title">Inventaire</h4>
+          <h4 className="panel-title">Inventaire<InfoTip help={"Ce que le personnage transporte. La colonne du poids sert si vous jouez avec la charge maximale."} example={"Corde de chanvre (15 m) — 1 unite, 5 kg"} /></h4>
           <span className="spacer" />
           <span className="faint">{totalWeight.toFixed(1)} kg</span>
           {editable ? (
@@ -1228,20 +1232,54 @@ function StoryTab({ character, editable, save }) {
   const setDetail = (key, value) => save({ details: { ...details, [key]: value } });
 
   const fields = [
-    ['personality', 'Traits de personnalité'],
-    ["ideals", "Idéaux"],
-    ['bonds', 'Liens'],
-    ['flaws', 'Défauts'],
-    ['languages', 'Langues'],
-    ['tools', 'Outils et maîtrises'],
+    [
+      'personality',
+      'Traits de personnalité',
+      "Deux ou trois manies qui rendent le personnage reconnaissable a table. Elles se jouent, elles ne se calculent pas.",
+      "Je cite des proverbes nains a tout propos, meme quand personne n'ecoute",
+    ],
+    [
+      'ideals',
+      'Idéaux',
+      "Ce a quoi le personnage croit et qui guide ses choix quand la situation se complique.",
+      "La liberte. Personne ne devrait dicter a un autre ce qu'il doit devenir",
+    ],
+    [
+      'bonds',
+      'Liens',
+      "Ce qui l'attache au monde : une personne, un lieu, un objet. C'est la ou le Maitre du Jeu viendra le chercher.",
+      "Ma soeur est restee a Valmorne. Je ne partirai pas sans elle",
+    ],
+    [
+      'flaws',
+      'Défauts',
+      "La faiblesse qui le met en difficulte. Un bon defaut cree des ennuis, il n'en evite pas.",
+      "Je ne resiste jamais a un pari, meme quand je sais que je vais perdre",
+    ],
+    [
+      'languages',
+      'Langues',
+      "Les langues comprises et parlees, venant de la race, de l'historique ou de la classe.",
+      "Commun, nain, elfique",
+    ],
+    [
+      'tools',
+      'Outils et maîtrises',
+      "Outils, instruments, armures et armes que le personnage sait utiliser avec son bonus de maitrise.",
+      "Outils de voleur, luth, armures legeres",
+    ],
   ];
 
   return (
     <div className="col" style={{ gap: 12 }}>
       <section className="card pad grid-2">
-        {fields.map(([key, label]) => (
+        {fields.map(([key, label, help, example]) => (
           <div className="field" key={key}>
-            <label>{label}</label>
+            <label>
+              <FieldLabel help={help} example={example}>
+                {label}
+              </FieldLabel>
+            </label>
             <LazyInput
               as="textarea"
               className="textarea"
@@ -1255,7 +1293,7 @@ function StoryTab({ character, editable, save }) {
       </section>
       <section className="card pad">
         <div className="field">
-          <label>Histoire du personnage</label>
+          <label><FieldLabel help={"D'ou vient-il, ce qu'il cherche, ce qu'il a laisse derriere lui. C'est la matiere que le Maitre du Jeu utilisera pour vous ecrire des scenes."} example={"Ancien garde de Valmorne, parti le soir ou la comete est tombee"}>Histoire du personnage</FieldLabel></label>
           <LazyInput
             as="textarea"
             className="textarea"
@@ -1269,7 +1307,7 @@ function StoryTab({ character, editable, save }) {
       </section>
       <section className="card pad grid-2">
         <div className="field">
-          <label>Alliés et organisations</label>
+          <label><FieldLabel help={"Les gens et les groupes sur lesquels le personnage peut compter, ou auxquels il doit quelque chose."} example={"Guilde des marchands de Sourbier — ils me doivent une faveur"}>Alliés et organisations</FieldLabel></label>
           <LazyInput
             as="textarea"
             className="textarea"
@@ -1281,7 +1319,7 @@ function StoryTab({ character, editable, save }) {
           />
         </div>
         <div className="field">
-          <label>Trésor</label>
+          <label><FieldLabel help={"Les biens de valeur qui ne tiennent pas dans l'inventaire : proprietes, titres, objets remarquables."} example={"Un anneau de famille grave aux armes des Chantevent"}>Trésor</FieldLabel></label>
           <LazyInput
             as="textarea"
             className="textarea"
@@ -1294,7 +1332,7 @@ function StoryTab({ character, editable, save }) {
       </section>
       <section className="card pad">
         <div className="field">
-          <label>Capacités et traits supplémentaires</label>
+          <label><FieldLabel help={"Tout ce que les autres onglets ne couvrent pas : dons, traits raciaux, capacites de classe."} example={"Vision dans le noir 18 m — Chanceux : je relance un 1 trois fois par jour"}>Capacités et traits supplémentaires</FieldLabel></label>
           <LazyInput
             as="textarea"
             className="textarea"
@@ -1316,18 +1354,22 @@ function LookTab({ character, editable, save }) {
   return (
     <div className="col" style={{ gap: 12 }}>
       <section className="card pad">
-        <h4 className="panel-title">Apparence physique</h4>
+        <h4 className="panel-title">Apparence physique<InfoTip help={"La description du personnage, pour que les autres joueurs puissent se le representer."} example={"Petite, nerveuse, manteau rapiece"} /></h4>
         <div className="grid-3">
           {[
-            ['age', 'Âge'],
-            ['height', 'Taille'],
-            ['weight', 'Poids'],
-            ['eyes', 'Yeux'],
-            ['skin', 'Peau'],
-            ['hair', 'Cheveux'],
-          ].map(([key, label]) => (
+            ['age', 'Âge', "L'age du personnage. Les races longevives vieillissent autrement : un elfe de 120 ans est un jeune adulte.", '27 ans'],
+            ['height', 'Taille', 'Sa taille, utile pour se representer la scene et pour les descriptions.', '1,62 m'],
+            ['weight', 'Poids', 'Son poids. Il compte rarement, sauf pour une chute, une monture ou un pont fragile.', '58 kg'],
+            ['eyes', 'Yeux', 'La couleur des yeux, un detail que les autres personnages remarquent en premier.', 'Vert pale'],
+            ['skin', 'Peau', 'Le teint, les cicatrices, les marques particulieres.', 'Halee, une cicatrice sur la joue gauche'],
+            ['hair', 'Cheveux', 'La coiffure et la couleur, souvent ce qui distingue un personnage de loin.', 'Noirs, tresses serrees'],
+          ].map(([key, label, help, example]) => (
             <div className="field" key={key}>
-              <label>{label}</label>
+              <label>
+                <FieldLabel help={help} example={example}>
+                  {label}
+                </FieldLabel>
+              </label>
               <LazyInput
                 className="input"
                 value={details[key] || ''}
@@ -1338,7 +1380,7 @@ function LookTab({ character, editable, save }) {
           ))}
         </div>
         <div className="field" style={{ marginTop: 10 }}>
-          <label>Apparence du personnage</label>
+          <label><FieldLabel help={"La silhouette generale, la tenue, l'allure. De quoi permettre aux autres joueurs de se le representer."} example={"Petite et nerveuse, manteau de voyage rapiece, ne tient jamais en place"}>Apparence du personnage</FieldLabel></label>
           <LazyInput
             as="textarea"
             className="textarea"
