@@ -1180,3 +1180,43 @@
   .sheet-vitals { width: 100%; justify-content: space-between; }
   .topbar .topbar-user .btn { display: none; }
 }
+
+/* ------------------------------------------------- Fiche imprimable ----- */
+
+.print-sheet { display: none; }
+
+@media print {
+  body * { visibility: hidden; }
+  .print-sheet, .print-sheet * { visibility: visible; }
+  .print-sheet {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: #fff;
+    color: #111;
+    font-family: Georgia, 'Times New Roman', serif;
+  }
+}
+
+.ps-page { padding: 12mm; page-break-after: always; }
+.ps-page:last-child { page-break-after: auto; }
+.ps-title { font-size: 22px; font-weight: 700; margin: 0 0 4mm; }
+.ps-row { display: flex; gap: 6mm; flex-wrap: wrap; margin-bottom: 4mm; align-items: flex-start; }
+.ps-field { flex: 1; min-width: 32mm; }
+.ps-label { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; margin-bottom: 0.8mm; }
+.ps-value { display: block; font-size: 12px; border-bottom: 1px solid #999; min-height: 4mm; padding-bottom: 0.8mm; white-space: pre-wrap; }
+.ps-section { border: 1px solid #999; border-radius: 3px; padding: 3mm 4mm; margin-bottom: 4mm; }
+.ps-section h4 { margin: 0 0 2mm; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.ps-grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3mm; }
+.ps-ability { text-align: center; border: 1px solid #999; border-radius: 4px; padding: 2mm 1mm; }
+.ps-ability .name { font-size: 8px; text-transform: uppercase; color: #555; }
+.ps-ability .score { font-size: 15px; font-weight: 700; }
+.ps-ability .mod { font-size: 10px; color: #555; }
+.ps-list { list-style: none; margin: 0; padding: 0; font-size: 11px; }
+.ps-list li { display: flex; gap: 2mm; padding: 0.6mm 0; border-bottom: 1px dotted #ccc; }
+.ps-dot { width: 2.8mm; height: 2.8mm; border: 1px solid #333; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 0.6mm; }
+.ps-dot.on { background: #333; }
+.ps-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.ps-table th, .ps-table td { border: 1px solid #ccc; padding: 1mm 2mm; text-align: left; }
+.ps-textblock { white-space: pre-wrap; font-size: 11px; min-height: 6mm; }

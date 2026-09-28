@@ -14,7 +14,7 @@ export function CharactersPage() {
   const [characters, setCharacters] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
+  const [form, setForm] = useState({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
   const [joining, setJoining] = useState(null);
   const [joinCampaignId, setJoinCampaignId] = useState('');
 
@@ -30,6 +30,11 @@ export function CharactersPage() {
   useEffect(() => {
     load().catch((err) => toast(err.message, 'error'));
   }, []);
+
+  const openCreate = () => {
+    setForm((f) => ({ ...f, playerName: f.playerName || me?.username || '' }));
+    setCreating(true);
+  };
 
   const create = async () => {
     if (!form.name.trim()) return;
@@ -53,9 +58,10 @@ export function CharactersPage() {
           skills: Object.fromEntries((template?.skills || []).map((s) => [s, 1])),
         },
         spellcasting: { ability: SPELL_ABILITY_BY_CLASS[form.class] || 'int', slots: {}, known: [] },
+        details: form.playerName.trim() ? { playerName: form.playerName.trim() } : undefined,
       });
       setCreating(false);
-      setForm({ name: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
+      setForm({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
       await load();
       toast('Personnage créé', 'success');
     } catch (err) {
@@ -101,7 +107,7 @@ export function CharactersPage() {
               jeu pour la modifier en détail.
             </p>
           </div>
-          <button type="button" className="btn primary" onClick={() => setCreating(true)}>
+          <button type="button" className="btn primary" onClick={openCreate}>
             Nouveau personnage
           </button>
         </div>
@@ -152,7 +158,7 @@ export function CharactersPage() {
             <div className="card empty-state" style={{ gridColumn: '1/-1' }}>
               <h3>Aucun personnage</h3>
               <p className="muted">Créez votre premier héros : les caractéristiques de base seront pre-remplies selon la classe.</p>
-              <button type="button" className="btn primary" onClick={() => setCreating(true)}>
+              <button type="button" className="btn primary" onClick={openCreate}>
                 Créer un personnage
               </button>
             </div>
@@ -186,6 +192,15 @@ export function CharactersPage() {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && create()}
               placeholder="Aelith Ombrelune"
+            />
+          </div>
+          <div className="field">
+            <label>Nom du joueur</label>
+            <input
+              className="input"
+              value={form.playerName}
+              onChange={(e) => setForm({ ...form, playerName: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && create()}
             />
           </div>
           <div className="field">

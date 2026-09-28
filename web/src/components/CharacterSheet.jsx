@@ -7,6 +7,7 @@ import {
 import { Modal, Tabs, LazyInput, useToast, useConfirm } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 import { TokenStyler } from './TokenStyler.jsx';
+import { CharacterPrintSheet } from './CharacterPrintSheet.jsx';
 
 const TABS = [
   { key: 'main', label: 'Principal', icon: '✦' },
@@ -261,6 +262,9 @@ export function CharacterSheet({ character: initial, onClose }) {
             <button type="button" className="btn sm primary" onClick={dropOnMap}>
               Poser sur la carte
             </button>
+            <button type="button" className="btn sm" onClick={() => window.print()}>
+              Exporter en PDF
+            </button>
             {editable ? (
               <button
                 type="button"
@@ -320,6 +324,7 @@ export function CharacterSheet({ character: initial, onClose }) {
           {tab === 'look' ? <LookTab character={character} editable={editable} save={save} /> : null}
         </div>
       </div>
+      <CharacterPrintSheet character={character} derived={derived} prof={prof} profs={profs} />
     </Modal>
   );
 }
@@ -327,6 +332,9 @@ export function CharacterSheet({ character: initial, onClose }) {
 /* ------------------------------------------------------------- Onglets --- */
 
 function MainTab({ character, abilities, derived, profs, prof, editable, save, rollWithModifiers }) {
+  const details = character.details || {};
+  const setDetail = (key, value) => save({ details: { ...details, [key]: value } });
+
   const setAbility = (key, value) =>
     save({ abilities: { ...abilities, [key]: Math.max(1, Math.min(30, Number(value) || 10)) } });
 
@@ -471,6 +479,15 @@ function MainTab({ character, abilities, derived, profs, prof, editable, save, r
               className="input"
               value={character.subclass}
               onCommit={(subclass) => save({ subclass })}
+              disabled={!editable}
+            />
+          </div>
+          <div className="field">
+            <label>Nom du joueur</label>
+            <LazyInput
+              className="input"
+              value={details.playerName || ''}
+              onCommit={(v) => setDetail('playerName', v)}
               disabled={!editable}
             />
           </div>
@@ -827,6 +844,16 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
             <strong className="big mono">{signed(derived.spellAttack ?? 0)}</strong>
           </button>
         </div>
+        <div className="field" style={{ maxWidth: 240, marginTop: 10 }}>
+          <label>Sorts à préparer chaque jour</label>
+          <LazyInput
+            className="input"
+            type="number"
+            value={sc.prepared ?? 0}
+            onCommit={(v) => setSc({ prepared: Math.max(0, Number(v) || 0) })}
+            disabled={!editable}
+          />
+        </div>
       </section>
 
       <section className="card pad">
@@ -1105,14 +1132,88 @@ function StoryTab({ character, editable, save }) {
           />
         </div>
       </section>
+      <section className="card pad grid-2">
+        <div className="field">
+          <label>Alliés et organisations</label>
+          <LazyInput
+            as="textarea"
+            className="textarea"
+            rows={3}
+            value={details.alliesOrganizations || ''}
+            onCommit={(v) => setDetail('alliesOrganizations', v)}
+            disabled={!editable}
+            placeholder="Nom, symbole, relation…"
+          />
+        </div>
+        <div className="field">
+          <label>Trésor</label>
+          <LazyInput
+            as="textarea"
+            className="textarea"
+            rows={3}
+            value={details.treasure || ''}
+            onCommit={(v) => setDetail('treasure', v)}
+            disabled={!editable}
+          />
+        </div>
+      </section>
+      <section className="card pad">
+        <div className="field">
+          <label>Capacités et traits supplémentaires</label>
+          <LazyInput
+            as="textarea"
+            className="textarea"
+            rows={4}
+            value={details.notes || ''}
+            onCommit={(v) => setDetail('notes', v)}
+            disabled={!editable}
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
 function LookTab({ character, editable, save }) {
   const [picking, setPicking] = useState(null);
+  const details = character.details || {};
+  const setDetail = (key, value) => save({ details: { ...details, [key]: value } });
   return (
     <div className="col" style={{ gap: 12 }}>
+      <section className="card pad">
+        <h4 className="panel-title">Apparence physique</h4>
+        <div className="grid-3">
+          {[
+            ['age', 'Âge'],
+            ['height', 'Taille'],
+            ['weight', 'Poids'],
+            ['eyes', 'Yeux'],
+            ['skin', 'Peau'],
+            ['hair', 'Cheveux'],
+          ].map(([key, label]) => (
+            <div className="field" key={key}>
+              <label>{label}</label>
+              <LazyInput
+                className="input"
+                value={details[key] || ''}
+                onCommit={(v) => setDetail(key, v)}
+                disabled={!editable}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="field" style={{ marginTop: 10 }}>
+          <label>Apparence du personnage</label>
+          <LazyInput
+            as="textarea"
+            className="textarea"
+            rows={3}
+            value={details.appearance || ''}
+            onCommit={(v) => setDetail('appearance', v)}
+            disabled={!editable}
+          />
+        </div>
+      </section>
       <TokenStyler
         style={character.style || {}}
         portraitUrl={character.portraitUrl}
