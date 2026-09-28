@@ -189,6 +189,7 @@ model Character {
   class      String @default("")
   subclass   String @default("")
   race       String @default("")
+  subrace    String @default("")
   background String @default("")
   alignment  String @default("")
   level      Int    @default(1)

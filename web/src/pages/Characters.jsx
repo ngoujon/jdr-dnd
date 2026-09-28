@@ -6,7 +6,7 @@ import { Modal, Spinner, useToast, useConfirm } from '../components/Ui.jsx';
 import { StyledToken } from '../components/TokenStyler.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
 import { IconJoin, IconTrash, IconSheet } from '../components/Icons.jsx';
-import { CLASSES, RACES, TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier } from '../lib/dnd.js';
+import { CLASSES, RACES, SUBRACES, TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier } from '../lib/dnd.js';
 
 /** Galerie de tous les personnages du joueur, toutes campagnes confondues. */
 export function CharactersPage() {
@@ -16,7 +16,7 @@ export function CharactersPage() {
   const [characters, setCharacters] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
+  const [form, setForm] = useState({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', subrace: '', campaignId: '' });
   const [joining, setJoining] = useState(null);
   const [joinCampaignId, setJoinCampaignId] = useState('');
   const [openSheet, setOpenSheet] = useState(null);
@@ -54,6 +54,7 @@ export function CharactersPage() {
         campaignId: form.campaignId || undefined,
         class: form.class,
         race: form.race,
+        subrace: form.subrace || undefined,
         abilities: template?.abilities,
         ac: template?.ac ?? 10,
         hitDice: template?.hitDice ?? '1d8',
@@ -69,7 +70,7 @@ export function CharactersPage() {
       });
       const { character } = created;
       setCreating(false);
-      setForm({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', campaignId: '' });
+      setForm({ name: '', playerName: '', class: 'Guerrier', race: 'Humain', subrace: '', campaignId: '' });
       await load();
       // La fiche s'ouvre dans la foulée : c'est le moment où l'on complète son
       // personnage, pas à l'entrée dans une campagne.
@@ -253,7 +254,11 @@ export function CharactersPage() {
           </div>
           <div className="field">
             <label>Race</label>
-            <select className="select" value={form.race} onChange={(e) => setForm({ ...form, race: e.target.value })}>
+            <select
+              className="select"
+              value={form.race}
+              onChange={(e) => setForm({ ...form, race: e.target.value, subrace: '' })}
+            >
               {RACES.map((r) => (
                 <option key={r} value={r}>
                   {r}
@@ -261,6 +266,25 @@ export function CharactersPage() {
               ))}
             </select>
           </div>
+          {/* Regles 2014 : certaines races se declinent en sous-races, d'autres
+              non. Le champ n'apparait que lorsqu'un choix existe. */}
+          {SUBRACES[form.race]?.length ? (
+            <div className="field">
+              <label>Sous-race</label>
+              <select
+                className="select"
+                value={form.subrace}
+                onChange={(e) => setForm({ ...form, subrace: e.target.value })}
+              >
+                <option value="">À choisir plus tard</option>
+                {SUBRACES[form.race].map((sr) => (
+                  <option key={sr} value={sr}>
+                    {sr}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           {campaigns.length > 0 ? (
             <div className="field">
               <label>Campagne (optionnel)</label>

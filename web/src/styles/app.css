@@ -1570,3 +1570,66 @@
   background: var(--brass);
   color: #241704;
 }
+
+/* ---------------------------------------------------- Choix d'un sort --- */
+
+/* Recherche a gauche, detail a droite : on compare souvent deux sorts avant de
+   trancher, ce qu'une infobulle au survol ne permet pas. */
+.spell-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 380px; }
+.spell-picker-search { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.spell-filters { gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.spell-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.spell-result {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.spell-result:hover { background: var(--ink-750); color: var(--text); }
+.spell-result.active { background: var(--ink-700); color: var(--brass-bright); }
+.spell-result em { margin-left: auto; font-style: normal; font-size: 11px; color: var(--text-faint); }
+.spell-empty { padding: 12px; font-size: 12px; }
+
+.spell-detail {
+  padding: 14px;
+  background: var(--ink-900);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.spell-detail h4 { font-size: 16px; color: var(--brass-bright); margin-bottom: 2px; }
+.spell-school { font-size: 12px; color: var(--text-faint); margin: 0 0 12px; }
+.spell-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+.spell-meta dt { color: var(--text-faint); }
+.spell-meta dd { margin: 0; }
+.spell-text { font-size: 13px; line-height: 1.55; margin: 0; }
+
+@media (max-width: 760px) {
+  .spell-picker { grid-template-columns: 1fr; }
+}

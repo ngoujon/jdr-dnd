@@ -17,6 +17,7 @@ const characterSchema = z.object({
   class: z.string().max(60).optional(),
   subclass: z.string().max(60).optional(),
   race: z.string().max(60).optional(),
+  subrace: z.string().max(60).optional(),
   background: z.string().max(60).optional(),
   alignment: z.string().max(40).optional(),
   level: z.number().int().min(1).max(20).optional(),

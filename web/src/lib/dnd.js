@@ -40,6 +40,39 @@ export const RACES = [
   'Drakéide', 'Tieffelin', 'Aasimar', 'Genasi', 'Tabaxi', 'Gobelin',
 ];
 
+/**
+ * Sous-races, d'apres les regles 2014 (Manuel des joueurs, puis Volo et
+ * Elementary Evil pour les races ajoutees ensuite).
+ *
+ * Toutes les races n'en ont pas : demi-elfe, demi-orc, tieffelin et tabaxi se
+ * jouent sans sous-race dans cette edition. Une race absente de cette table est
+ * donc traitee comme n'ayant pas de choix a faire, et non comme une omission.
+ *
+ * Le drakeide choisit une ascendance draconique plutot qu'une sous-race : elle
+ * se presente au meme endroit puisqu'elle se choisit au meme moment et
+ * determine de la meme facon le type de degats du souffle.
+ */
+export const SUBRACES = {
+  Nain: ['Nain des collines', 'Nain des montagnes'],
+  Elfe: ['Haut-elfe', 'Elfe des bois', 'Elfe noir (drow)'],
+  Halfelin: ['Pieds-légers', 'Robuste'],
+  Gnome: ['Gnome des forêts', 'Gnome des roches'],
+  Humain: ['Humain', 'Humain (variante)'],
+  Drakéide: [
+    'Ascendance airain (feu)', 'Ascendance argent (froid)', 'Ascendance blanc (froid)',
+    'Ascendance bleu (foudre)', 'Ascendance bronze (foudre)', 'Ascendance cuivre (acide)',
+    'Ascendance noir (acide)', 'Ascendance or (feu)', 'Ascendance rouge (feu)',
+    'Ascendance vert (poison)',
+  ],
+  Aasimar: ['Aasimar protecteur', 'Aasimar fossoyeur', 'Aasimar justicier'],
+  Genasi: ['Genasi de l\'air', 'Genasi de la terre', 'Genasi du feu', 'Genasi de l\'eau'],
+  Gobelin: [],
+  'Demi-elfe': [],
+  'Demi-orc': [],
+  Tieffelin: [],
+  Tabaxi: [],
+};
+
 export const BACKGROUNDS = [
   'Acolyte', 'Artisan de guilde', 'Charlatan', 'Criminel', 'Ermite', 'Enfant des rues',
   'Héros du peuple', 'Marin', 'Ménestrel', 'Noble', 'Sage', 'Soldat', 'Sauvageon',

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTable, useAuth } from '../lib/store.js';
 import {
   ABILITIES, SKILLS, CLASSES, RACES, BACKGROUNDS, ALIGNMENTS, DAMAGE_TYPES,
-  TEMPLATES, SPELL_ABILITY_BY_CLASS, modifier, proficiencyBonus, signed, levelFromXp,
+  TEMPLATES, SPELL_ABILITY_BY_CLASS, SUBRACES, modifier, proficiencyBonus, signed, levelFromXp,
 } from '../lib/dnd.js';
 import { api } from '../lib/api.js';
 import { Modal, LazyInput, Spinner, InfoTip, FieldLabel, useToast, useConfirm } from './Ui.jsx';
@@ -12,6 +12,8 @@ import {
 import { AssetLibrary } from './AssetLibrary.jsx';
 import { TokenStyler } from './TokenStyler.jsx';
 import { CharacterPrintSheet } from './CharacterPrintSheet.jsx';
+import { SpellPicker } from './SpellPicker.jsx';
+import { findSpell, spellLevelLabel } from '../lib/spells.js';
 
 const TABS = [
   { key: 'main', label: 'Personnage', icon: <IconCharacter /> },
@@ -191,7 +193,7 @@ export function CharacterSheet({ character: initial, onClose }) {
               <select
                 className="select sm"
                 value={character.race}
-                onChange={(e) => save({ race: e.target.value })}
+                onChange={(e) => save({ race: e.target.value, subrace: '' })}
                 disabled={!editable}
               >
                 <option value="">Race…</option>
@@ -201,6 +203,24 @@ export function CharacterSheet({ character: initial, onClose }) {
                   </option>
                 ))}
               </select>
+              {/* Toutes les races n'ont pas de sous-race : le selecteur ne
+                  s'affiche que lorsqu'il y a reellement un choix a faire. */}
+              {SUBRACES[character.race]?.length ? (
+                <select
+                  className="select sm"
+                  value={character.subrace || ''}
+                  onChange={(e) => save({ subrace: e.target.value })}
+                  disabled={!editable}
+                  aria-label="Sous-race"
+                >
+                  <option value="">Sous-race…</option>
+                  {SUBRACES[character.race].map((sr) => (
+                    <option key={sr} value={sr}>
+                      {sr}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <label className="mini-field">
                 <span>Niveau</span>
                 <LazyInput
@@ -868,9 +888,27 @@ function FeatureList({ character, editable, save }) {
   );
 }
 
+/**
+ * Rappel de l'effet d'un sort deja inscrit sur la fiche.
+ *
+ * Reste muet pour un sort absent du catalogue : une ligne saisie a la main est
+ * legitime, elle ne doit pas etre signalee comme une erreur.
+ */
+function SpellHelp({ name }) {
+  const spell = findSpell(name);
+  if (!spell) return null;
+  return (
+    <InfoTip
+      help={`${spellLevelLabel(spell.level)} · ${spell.school}. ${spell.text}`}
+      example={`Incantation ${spell.time} — portée ${spell.range} — durée ${spell.duration}`}
+    />
+  );
+}
+
 function SpellsTab({ character, editable, save, derived, doRoll }) {
   const sc = character.spellcasting || { ability: 'int', slots: {}, known: [] };
   const known = sc.known || [];
+  const [picking, setPicking] = useState(false);
 
   const setSc = (patch) => save({ spellcasting: { ...sc, ...patch } });
   const setSlot = (level, patch) =>
@@ -965,13 +1003,19 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
           <h4 className="panel-title">Sorts connus<InfoTip help={"Les sorts que le personnage peut lancer. Les classes a preparation choisissent chaque jour dans cette liste."} example={"Mot de guerison, Vague tonnante, Image silencieuse"} /></h4>
           <span className="spacer" />
           {editable ? (
-            <button
-              type="button"
-              className="btn xs primary"
-              onClick={() => setSc({ known: [...known, { id: uid(), name: '', level: 0, prepared: false, notes: '' }] })}
-            >
-              + Sort
-            </button>
+            <>
+              <button type="button" className="btn xs primary" onClick={() => setPicking(true)}>
+                Chercher un sort
+              </button>
+              <button
+                type="button"
+                className="btn xs"
+                onClick={() => setSc({ known: [...known, { id: uid(), name: '', level: 0, prepared: false, notes: '' }] })}
+                title="Ajouter une ligne vide, pour un sort absent du catalogue"
+              >
+                + Ligne
+              </button>
+            </>
           ) : null}
         </div>
         <ul className="spell-list">
@@ -990,6 +1034,7 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
                 disabled={!editable}
                 placeholder="Nom du sort"
               />
+              <SpellHelp name={spell.name} />
               <select
                 className="select sm"
                 style={{ maxWidth: 110 }}
@@ -1033,6 +1078,28 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
           ))}
           {!known.length ? <li className="empty">Aucun sort.</li> : null}
         </ul>
+
+        <SpellPicker
+          open={picking}
+          onClose={() => setPicking(false)}
+          className={character.class}
+          onPick={(spell) =>
+            setSc({
+              known: [
+                ...known,
+                {
+                  id: uid(),
+                  name: spell.name,
+                  level: spell.level,
+                  prepared: false,
+                  // Les informations de jeu sont recopiees dans la fiche : elle
+                  // doit rester lisible seule, y compris a l'impression.
+                  notes: `${spell.time} · ${spell.range} · ${spell.duration}`,
+                },
+              ],
+            })
+          }
+        />
       </section>
     </div>
   );

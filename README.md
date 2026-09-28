@@ -209,4 +209,12 @@ Avant d'ouvrir l'outil sur Internet :
 ## Licence
 
 Usage privé. D&D et Dungeons & Dragons sont des marques de Wizards of the Coast ;
-ce projet est un outil indépendant qui ne contient aucun texte de règles.
+ce projet est un outil indépendant, sans lien avec l'éditeur.
+
+Le catalogue de sorts (`web/src/lib/spells.js`) s'appuie sur le **System
+Reference Document 5.1**, publié par Wizards of the Coast sous licence
+[Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
+Les descriptions affichées sont des résumés d'effet rédigés pour cette
+application : elles permettent de reconnaître un sort et de décider en jeu, mais
+ne remplacent pas le manuel, qui fait foi sur les règles. Les sous-races
+proposées suivent les règles de 2014.

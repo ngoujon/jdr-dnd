@@ -2,6 +2,15 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.6.0',
+    date: '2026-09-28',
+    changes: [
+      "Choix de la sous-race à la création du personnage, selon les règles de 2014",
+      "Catalogue de sorts avec recherche par nom et description de l'effet à côté",
+      "Rappel de l'effet d'un sort directement sur la fiche, au survol",
+    ],
+  },
+  {
     version: '0.5.0',
     date: '2026-09-28',
     changes: [
