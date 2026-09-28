@@ -72,7 +72,6 @@ const initialTable = {
   messages: [],
   combat: null,
   online: [],
-  cursors: {},
   pings: [],
   loading: true,
   error: null,
@@ -227,9 +226,6 @@ export const useTable = create((set, get) => ({
       set((state) => ({ assets: [...assets, ...state.assets] })),
     );
 
-    on('cursor:move', ({ userId, username, x, y }) =>
-      set((state) => ({ cursors: { ...state.cursors, [userId]: { username, x, y, at: Date.now() } } })),
-    );
     on('map:ping', (ping) => {
       const id = `${ping.userId}-${Date.now()}-${Math.random()}`;
       set((state) => ({ pings: [...state.pings, { ...ping, id }] }));
@@ -337,10 +333,6 @@ export const useTable = create((set, get) => ({
   ping(x, y, focus = false) {
     const { campaignId, scene } = get();
     getSocket().emit('map:ping', { campaignId, x, y, sceneId: scene?.id, focus });
-  },
-
-  moveCursor(x, y) {
-    getSocket().emit('cursor:move', { campaignId: get().campaignId, x, y });
   },
 
   dragToken(tokenId, x, y) {

@@ -9,7 +9,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 /**
  * Plateau de jeu : panoramique, zoom, pions deplacables, brouillard de guerre,
- * calque de dessin, mesure de distance, pings et curseurs partages.
+ * calque de dessin, mesure de distance et pings.
  */
 export function MapCanvas({
   tool,
@@ -24,13 +24,11 @@ export function MapCanvas({
   const tokens = useTable((s) => s.tokens);
   const characters = useTable((s) => s.characters);
   const ghosts = useTable((s) => s.ghosts);
-  const cursors = useTable((s) => s.cursors);
   const pings = useTable((s) => s.pings);
   const isGM = useTable((s) => s.isGM);
   const me = useAuth((s) => s.user);
   const moveTokens = useTable((s) => s.moveTokens);
   const dragToken = useTable((s) => s.dragToken);
-  const moveCursor = useTable((s) => s.moveCursor);
   const ping = useTable((s) => s.ping);
   const updateFog = useTable((s) => s.updateFog);
   const updateDrawings = useTable((s) => s.updateDrawings);
@@ -44,7 +42,6 @@ export function MapCanvas({
   const [fogDraft, setFogDraft] = useState(null);
   const [localDrag, setLocalDrag] = useState({});
   const dragState = useRef(null);
-  const lastCursorSend = useRef(0);
 
   const gridSize = scene?.gridSize || 70;
 
@@ -350,22 +347,7 @@ export function MapCanvas({
     window.addEventListener('pointerup', onUp);
   };
 
-  /* --- Curseur partage ----------------------------------------------------- */
-
-  const onPointerMove = (e) => {
-    const now = Date.now();
-    if (now - lastCursorSend.current < 60) return;
-    lastCursorSend.current = now;
-    const p = toScene(e.clientX, e.clientY);
-    moveCursor(Math.round(p.x), Math.round(p.y));
-  };
-
   /* --- Rendu --------------------------------------------------------------- */
-
-  const visibleCursors = useMemo(
-    () => Object.entries(cursors).filter(([, c]) => Date.now() - c.at < 8000),
-    [cursors],
-  );
 
   const strokes = useMemo(
     () => [...(scene?.drawings || []), ...(strokeDraft ? [strokeDraft] : [])],
@@ -437,7 +419,6 @@ export function MapCanvas({
       ref={hostRef}
       className={`map-host tool-${tool} ${panning ? 'panning' : ''}`}
       onPointerDown={onBackgroundPointerDown}
-      onPointerMove={onPointerMove}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
@@ -573,15 +554,6 @@ export function MapCanvas({
             <span className="map-ping-label" style={{ fontSize: 12 / view.k }}>
               {p.username}
             </span>
-          </span>
-        ))}
-
-        {visibleCursors.map(([userId, c]) => (
-          <span key={userId} className="remote-cursor" style={{ left: c.x, top: c.y }}>
-            <svg width={18 / view.k} height={18 / view.k} viewBox="0 0 18 18">
-              <path d="M2 2 L14 8 L8.5 9.5 L6.5 15 Z" fill="#e0a75c" stroke="#1b1206" strokeWidth="1.2" />
-            </svg>
-            <em style={{ fontSize: 11 / view.k }}>{c.username}</em>
           </span>
         ))}
       </div>

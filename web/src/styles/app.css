@@ -544,22 +544,6 @@
 }
 .map-ping-label { color: var(--brass-bright); text-shadow: 0 1px 3px #000; font-weight: 700; }
 
-.remote-cursor {
-  position: absolute;
-  pointer-events: none;
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
-}
-.remote-cursor em {
-  background: rgba(10, 12, 18, 0.85);
-  color: var(--brass-bright);
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-style: normal;
-  white-space: nowrap;
-}
-
 .zoom-hud {
   position: absolute;
   bottom: 12px;

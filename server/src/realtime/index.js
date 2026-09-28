@@ -127,13 +127,6 @@ export const attachRealtime = (httpServer) => {
       socket.to(roomCampaign(campaignId)).emit('token:drag', { tokenId, x, y, byUserId: user.id });
     });
 
-    /** Curseurs partages façon Roll20. */
-    socket.on('cursor:move', (payload) => {
-      const { campaignId, x, y } = payload || {};
-      if (!campaignId || !socket.data.campaigns.has(campaignId)) return;
-      socket.to(roomCampaign(campaignId)).emit('cursor:move', { userId: user.id, username: user.username, x, y });
-    });
-
     /** Marqueur "regardez ici" (ping). */
     socket.on('map:ping', (payload) => {
       const { campaignId, x, y, sceneId, focus } = payload || {};
