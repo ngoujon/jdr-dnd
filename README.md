@@ -10,6 +10,16 @@ servie par nginx) et deux volumes pour les données et les fichiers téléversé
 
 ---
 
+## Aperçu
+
+*Captures de la campagne de démonstration fournie (`server/prisma/demo.js`) : personnages, cartes et discussions fictifs.*
+
+![Table de jeu](docs/screenshots/table.jpg)
+
+| Campagnes | Personnages |
+| --- | --- |
+| ![Campagnes](docs/screenshots/campaigns.jpg) | ![Personnages](docs/screenshots/characters.jpg) |
+
 ## Démarrage
 
 ```bash
