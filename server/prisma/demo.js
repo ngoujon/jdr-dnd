@@ -7,12 +7,18 @@
  * Idempotent : relancer le script remet la partie de démo dans son état initial
  * sans toucher aux autres campagnes.
  */
+import { randomBytes } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-const PASSWORD = '***REDACTED***';
+// Mot de passe des comptes de demonstration. Il n'est pas ecrit en dur : ce
+// fichier est versionne, et la campagne de demo est parfois installee sur une
+// instance accessible, ou un mot de passe publie devient un identifiant valide.
+// Il est tire au hasard et affiche en fin d'execution, sauf si l'environnement
+// en impose un (DEMO_PASSWORD).
+const PASSWORD = process.env.DEMO_PASSWORD || randomBytes(9).toString('base64url');
 const JOIN_CODE = 'DEMO24';
 
 const USERS = [

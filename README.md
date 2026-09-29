@@ -35,12 +35,19 @@ Cela crée la campagne **« Les Cendres de Valmorne »** : 3 scènes, 3 personna
 joueurs complets, 3 PNJ, des documents partagés et secrets, un ordre d'initiative
 et un historique de chat.
 
-| Rôle | Identifiant | Mot de passe |
-| --- | --- | --- |
-| Maître du Jeu | `mj@demo.fr` | `***REDACTED***` |
-| Joueur (Paladin) | `kaelen@demo.fr` | `***REDACTED***` |
-| Joueur (Druide) | `sylve@demo.fr` | `***REDACTED***` |
-| Joueur (Roublard) | `brann@demo.fr` | `***REDACTED***` |
+| Rôle | Identifiant |
+| --- | --- |
+| Maître du Jeu | `mj@demo.fr` |
+| Joueur (Paladin) | `kaelen@demo.fr` |
+| Joueur (Druide) | `sylve@demo.fr` |
+| Joueur (Roublard) | `brann@demo.fr` |
+
+Le script tire un mot de passe commun au hasard et l'affiche en fin
+d'exécution — notez-le, il n'est pas réaffiché. Pour en imposer un :
+`DEMO_PASSWORD=… docker compose exec server node prisma/demo.js`.
+
+Ces comptes n'ont pas leur place sur une instance ouverte sur Internet : la
+démo est faite pour découvrir l'outil en local.
 
 Code d'invitation de la campagne : **DEMO24**
 

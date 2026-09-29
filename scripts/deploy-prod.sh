@@ -14,15 +14,32 @@
 #
 #   ./scripts/deploy-prod.sh
 #
-# L'authentification se fait par cle SSH (hote "mon-serveur" de ~/.ssh/config).
-# Aucun mot de passe n'est stocke ici.
+# L'authentification se fait par cle SSH. Aucun mot de passe n'est stocke ici.
+#
+# L'adresse du serveur ne figure pas dans ce fichier : ce depot est public, et
+# publier l'emplacement exact d'une instance de production revient a en donner
+# l'adresse a qui passe. Elle se configure dans scripts/deploy-prod.env, qui
+# n'est pas versionne :
+#
+#   PROD_SSH_HOST=mon-serveur          # hote declare dans ~/.ssh/config
+#   PROD_DIR=/chemin/vers/table-ronde  # repertoire distant
+#   PROD_URL=https://exemple.test/jdr/ # URL publique, pour la verification
 set -e
 
-SSH_HOST="${PROD_SSH_HOST:-mon-serveur}"
-REMOTE_DIR="${PROD_DIR:-/chemin/vers/table-ronde}"
-PROD_URL="${PROD_URL:-http://serveur.exemple.test/jdr/}"
-
 cd "$(dirname "$0")/.."
+
+# shellcheck source=/dev/null
+[ -f scripts/deploy-prod.env ] && . ./scripts/deploy-prod.env
+
+SSH_HOST="${PROD_SSH_HOST:-}"
+REMOTE_DIR="${PROD_DIR:-/chemin/vers/table-ronde}"
+PROD_URL="${PROD_URL:-}"
+
+if [ -z "$SSH_HOST" ] || [ -z "$PROD_URL" ]; then
+  echo "[deploy-prod] ERREUR : PROD_SSH_HOST et PROD_URL doivent être définis," >&2
+  echo "              dans scripts/deploy-prod.env ou dans l'environnement." >&2
+  exit 1
+fi
 
 # --- Verifications locales -------------------------------------------------
 
