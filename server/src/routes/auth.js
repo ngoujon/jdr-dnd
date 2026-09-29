@@ -16,12 +16,25 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Au moins 8 caractères').max(200),
 });
 
+/**
+ * Domaines des comptes crees par les scripts de peuplement.
+ *
+ * Ces comptes existent pour essayer l'outil, avec des mots de passe connus de
+ * quiconque lit le depot. Certains finissent pourtant par servir de vrai compte
+ * de jeu : on le signale a leur proprietaire a chaque connexion.
+ */
+const SEED_DOMAINS = ['@tabletop.local', '@demo.fr'];
+
+const usesSeedIdentity = (email) =>
+  SEED_DOMAINS.some((domain) => String(email || '').toLowerCase().endsWith(domain));
+
 const publicUser = (user) => ({
   id: user.id,
   email: user.email,
   username: user.username,
   avatarUrl: user.avatarUrl,
   isAdmin: user.isAdmin,
+  usesSeedIdentity: usesSeedIdentity(user.email),
 });
 
 authRouter.post(
@@ -67,7 +80,11 @@ authRouter.get(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.json({ user: req.user });
+    // Passe par publicUser comme les autres routes : renvoyer req.user tel quel
+    // laissait de cote les champs calcules, dont l'alerte sur les comptes de
+    // demonstration — et c'est justement cette route qui alimente la session
+    // au demarrage de l'application.
+    res.json({ user: publicUser(req.user) });
   }),
 );
 

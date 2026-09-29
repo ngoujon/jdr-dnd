@@ -2,6 +2,13 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.7.0',
+    date: '2026-09-29',
+    changes: [
+      "Avertissement à la connexion pour les comptes utilisant encore une adresse de démonstration",
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-09-28',
     changes: [
