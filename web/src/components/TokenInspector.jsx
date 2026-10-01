@@ -96,6 +96,20 @@ export function TokenInspector({ tokenId, onClose }) {
           />
         </div>
         <div className="field">
+          <label title="Distance parcourue en un tour, en pieds. Sert au cercle de portée affiché sur la carte. Vide : vitesse du personnage lié.">
+            Vitesse (pieds)
+          </label>
+          <LazyInput
+            className="input sm"
+            type="number"
+            min="0"
+            step="5"
+            value={token.speed ?? ''}
+            placeholder={character?.speed != null ? String(character.speed) : '30'}
+            onCommit={(v) => set({ speed: v === '' ? null : Math.max(0, Math.round(Number(v)) || 0) })}
+          />
+        </div>
+        <div className="field">
           <label>Rotation</label>
           <LazyInput
             className="input sm"

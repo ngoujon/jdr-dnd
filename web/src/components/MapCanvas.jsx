@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth, useTable } from '../lib/store.js';
 import { TokenSprite } from './TokenSprite.jsx';
+import { feetToSceneUnits } from '../lib/dnd.js';
 
 const MIN_SCALE = 0.12;
 const MAX_SCALE = 4;
@@ -348,20 +349,25 @@ export function MapCanvas({
 
   /** Cercle de portee max (vitesse de deplacement) affiche autour du pion seul
    *  selectionne. Le joueur le voit sur ses propres pions ; le MJ le voit sur
-   *  n'importe quel pion lie a un personnage, pour arbitrer les deplacements. */
+   *  n'importe quel pion qui a une vitesse (la sienne, ou celle du personnage
+   *  lie), pour arbitrer les deplacements des PNJ comme des joueurs.
+   *  Le cercle reste centre sur la position enregistree pendant le glisser :
+   *  il montre jusqu'ou le pion peut aller depuis son point de depart. */
   const rangeRing = useMemo(() => {
     if (selection.length !== 1) return null;
     const token = tokens.find((t) => t.id === selection[0]);
     if (!token || !(isGM || isTokenOwned(token))) return null;
     const character = characters.find((c) => c.id === token.characterId);
-    if (!character?.speed) return null;
-    const ghost = localDrag[token.id] || ghosts[token.id];
+    const speed = token.speed ?? character?.speed;
+    if (!speed) return null;
+    const distance = feetToSceneUnits(speed, scene?.unitLabel);
     return {
-      cx: (ghost ? ghost.x : token.x) + token.width / 2,
-      cy: (ghost ? ghost.y : token.y) + token.height / 2,
-      radius: (character.speed / 5) * scalePx,
+      cx: token.x + token.width / 2,
+      cy: token.y + token.height / 2,
+      radius: (distance / (scene?.scaleUnits || 1.5)) * scalePx,
+      label: `${Math.round(distance * 10) / 10} ${scene?.unitLabel || 'm'}`,
     };
-  }, [selection, tokens, isGM, isTokenOwned, characters, localDrag, ghosts, scalePx]);
+  }, [selection, tokens, isGM, isTokenOwned, characters, scene, scalePx]);
 
   const fogRects = useMemo(
     () => [...(scene?.fogReveals || []), ...(fogDraft ? [{ ...fogDraft, id: 'draft' }] : [])],
@@ -495,6 +501,19 @@ export function MapCanvas({
               strokeWidth={2 / view.k}
               strokeDasharray={`${6 / view.k} ${5 / view.k}`}
             />
+            <text
+              x={rangeRing.cx}
+              y={rangeRing.cy - rangeRing.radius - 6 / view.k}
+              textAnchor="middle"
+              fontSize={12 / view.k}
+              fontWeight="700"
+              fill="#e0a75c"
+              stroke="rgba(5, 7, 10, 0.85)"
+              strokeWidth={3 / view.k}
+              paintOrder="stroke"
+            >
+              {rangeRing.label}
+            </text>
           </svg>
         ) : null}
 

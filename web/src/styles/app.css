@@ -497,6 +497,7 @@
 .map-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .map-layer { position: absolute; top: 0; left: 0; pointer-events: none; }
 .map-layer.fog { pointer-events: none; }
+.map-layer.range-ring { overflow: visible; }
 .token-layer { position: absolute; inset: 0; }
 
 .token { position: absolute; cursor: grab; }
@@ -815,7 +816,7 @@
   font-weight: 700;
   color: var(--brass-bright);
 }
-.init-input { width: 46px; flex: none; }
+.init-input { width: 68px; flex: none; text-align: center; font-family: var(--font-mono); font-weight: 700; }
 .init-actions { gap: 3px; }
 
 /* -------------------------------------------------------------- Scenes --- */

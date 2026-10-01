@@ -24,6 +24,7 @@ const tokenSchema = z.object({
   hp: z.number().int().nullish(),
   maxHp: z.number().int().nullish(),
   ac: z.number().int().nullish(),
+  speed: z.number().int().min(0).max(999).nullish(),
   conditions: z.array(z.string().max(40)).max(30).optional(),
   showNameplate: z.boolean().optional(),
   showHealthBar: z.boolean().optional(),

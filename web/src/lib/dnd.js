@@ -181,3 +181,14 @@ export const SPELL_ABILITY_BY_CLASS = {
   Magicien: 'int', Artificier: 'int', Clerc: 'wis', Druide: 'wis', Rodeur: 'wis',
   Barde: 'cha', Ensorceleur: 'cha', Occultiste: 'cha', Paladin: 'cha',
 };
+
+/** Convertit une vitesse D&D (en pieds) dans l'unite d'une scene, d'apres son
+ *  label. Convention de la VF : 5 pieds = 1,5 m, soit une case. Un label
+ *  inconnu est traite comme des metres, l'unite par defaut des scenes. */
+export function feetToSceneUnits(feet, unitLabel = 'm') {
+  const label = String(unitLabel || 'm').trim().toLowerCase();
+  if (/^(ft|feet|foot|pi|pied|pieds|')$/.test(label)) return feet;
+  if (/^(case|cases|sq|square|squares|c)$/.test(label)) return feet / 5;
+  if (/^(km|kilom)/.test(label)) return feet * 0.0003;
+  return feet * 0.3;
+}

@@ -2,6 +2,16 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.8.0',
+    date: '2026-10-01',
+    changes: [
+      "Le cercle de portée de déplacement respecte l'échelle de la scène et affiche la distance",
+      "Le cercle reste sur la position de départ pendant qu'on déplace le pion",
+      "Vitesse propre à chaque pion, pour que le MJ voie la portée des PNJ et monstres",
+      "Champ d'initiative élargi dans le suivi de combat",
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-09-29',
     changes: [
