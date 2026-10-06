@@ -2,6 +2,17 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.9.0',
+    date: '2026-10-06',
+    changes: [
+      "Gomme pour tous : chaque joueur peut effacer ses propres dessins, le MJ peut tout effacer",
+      "« Effacer tout » réservé au MJ ; les joueurs ont « Effacer mes dessins »",
+      "Le dessin d'un joueur n'efface plus les traits du calque MJ",
+      "Dessiner ou modifier le brouillard ne réinitialise plus le zoom",
+      "La règle de mesure ne disparaît plus en cours d'utilisation, fonctionne depuis un pion et hors de la carte",
+    ],
+  },
+  {
     version: '0.8.0',
     date: '2026-10-01',
     changes: [

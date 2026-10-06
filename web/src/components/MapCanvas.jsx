@@ -39,6 +39,8 @@ export function MapCanvas({
   const [panning, setPanning] = useState(false);
   const [marquee, setMarquee] = useState(null);
   const [measure, setMeasure] = useState(null);
+  const measureTimer = useRef(null);
+  const [erasing, setErasing] = useState(null);
   const [strokeDraft, setStrokeDraft] = useState(null);
   const [fogDraft, setFogDraft] = useState(null);
   const [localDrag, setLocalDrag] = useState({});
@@ -95,28 +97,39 @@ export function MapCanvas({
 
   /* --- Conversions écran <-> scene --------------------------------------- */
 
-  const toScene = useCallback(
-    (clientX, clientY) => {
-      const rect = hostRef.current.getBoundingClientRect();
-      return {
-        x: (clientX - rect.left - view.x) / view.k,
-        y: (clientY - rect.top - view.y) / view.k,
-      };
-    },
-    [view],
-  );
+  /** Vue courante lue au moment de l'evenement : les gestes en cours (mesure,
+   *  dessin, glisser) restent justes meme si on zoome ou deplace la carte pendant. */
+  const liveView = useRef(view);
+  liveView.current = view;
 
-  /** Recentre la carte dans la fenetre. */
-  const fitToScreen = useCallback(() => {
-    if (!scene || !hostRef.current) return;
+  const toScene = useCallback((clientX, clientY) => {
     const rect = hostRef.current.getBoundingClientRect();
-    const k = clamp(Math.min(rect.width / scene.width, rect.height / scene.height) * 0.94, MIN_SCALE, MAX_SCALE);
-    setView({ k, x: (rect.width - scene.width * k) / 2, y: (rect.height - scene.height * k) / 2 });
-  }, [scene]);
+    const v = liveView.current;
+    return {
+      x: (clientX - rect.left - v.x) / v.k,
+      y: (clientY - rect.top - v.y) / v.k,
+    };
+  }, []);
+
+  /** Recentre la carte dans la fenetre. Ne depend que des dimensions de la scene :
+   *  un dessin ou une modif de brouillard ne doit pas reinitialiser le zoom. */
+  const sceneWidth = scene?.width;
+  const sceneHeight = scene?.height;
+  const fitToScreen = useCallback(() => {
+    if (!sceneWidth || !sceneHeight || !hostRef.current) return;
+    const rect = hostRef.current.getBoundingClientRect();
+    const k = clamp(Math.min(rect.width / sceneWidth, rect.height / sceneHeight) * 0.94, MIN_SCALE, MAX_SCALE);
+    setView({ k, x: (rect.width - sceneWidth * k) / 2, y: (rect.height - sceneHeight * k) / 2 });
+  }, [sceneWidth, sceneHeight]);
+
+  /** Un joueur ne gomme que ses propres traits ; le MJ gomme tout. */
+  const canErase = useCallback((stroke) => isGM || (stroke.ownerId && stroke.ownerId === me?.id), [isGM, me]);
 
   useEffect(() => {
     fitToScreen();
   }, [scene?.id, fitToScreen]);
+
+  useEffect(() => () => clearTimeout(measureTimer.current), []);
 
   useEffect(() => {
     if (!viewRef) return;
@@ -183,10 +196,50 @@ export function MapCanvas({
       return;
     }
     if (tool === 'measure') {
+      // Annule l'effacement programme par la mesure precedente, sinon il
+      // ferait disparaitre celle-ci en plein trace.
+      clearTimeout(measureTimer.current);
       setMeasure({ from: point, to: point });
       const onMove = (ev) => setMeasure((m) => (m ? { ...m, to: toScene(ev.clientX, ev.clientY) } : m));
       const onUp = () => {
-        setTimeout(() => setMeasure(null), 1200);
+        measureTimer.current = setTimeout(() => setMeasure(null), 1500);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      return;
+    }
+    if (tool === 'draw' && brush.shape === 'eraser') {
+      const tolerance = 8 / liveView.current.k;
+      const erased = new Set();
+      let last = point;
+      // Le pointeur peut sauter de plusieurs pixels entre deux evenements : on
+      // echantillonne le segment parcouru pour ne pas passer a travers un trait.
+      const hit = (p) => {
+        const steps = Math.max(1, Math.ceil(Math.hypot(p.x - last.x, p.y - last.y) / tolerance));
+        let changed = false;
+        for (let i = 1; i <= steps; i += 1) {
+          const q = { x: last.x + ((p.x - last.x) * i) / steps, y: last.y + ((p.y - last.y) * i) / steps };
+          for (const stroke of scene.drawings || []) {
+            if (erased.has(stroke.id) || !(isGM || stroke.layer !== 'GM') || !canErase(stroke)) continue;
+            if (strokeDistance(stroke, q) <= stroke.width / 2 + tolerance) {
+              erased.add(stroke.id);
+              changed = true;
+            }
+          }
+        }
+        last = p;
+        if (changed) setErasing(new Set(erased));
+      };
+      hit(point);
+      const onMove = (ev) => hit(toScene(ev.clientX, ev.clientY));
+      const onUp = () => {
+        if (erased.size) {
+          const current = useTable.getState().scene?.drawings || [];
+          updateDrawings(current.filter((d) => !erased.has(d.id)));
+        }
+        setErasing(null);
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
       };
@@ -196,6 +249,7 @@ export function MapCanvas({
     }
     if (tool === 'draw') {
       const stroke = {
+        ownerId: me?.id,
         id: uid(),
         tool: brush.shape,
         color: brush.color,
@@ -215,7 +269,7 @@ export function MapCanvas({
       const onUp = () => {
         setStrokeDraft((s) => {
           if (s && s.points.length >= 4) {
-            updateDrawings([...(scene.drawings || []), s]);
+            updateDrawings([...(useTable.getState().scene?.drawings || []), s]);
           }
           return null;
         });
@@ -287,7 +341,9 @@ export function MapCanvas({
   };
 
   const onTokenPointerDown = (token) => (e) => {
-    if (e.button !== 0 || tool === 'pan' || e.altKey) return;
+    // Hors outil selection (mesure, dessin, ping...), le clic sur un pion est
+    // traite comme un clic sur la carte : on peut mesurer depuis un pion.
+    if (e.button !== 0 || tool !== 'select' || e.altKey) return;
     e.stopPropagation();
     if (!canMoveToken(token)) return;
 
@@ -299,8 +355,6 @@ export function MapCanvas({
         ? selection
         : [token.id];
     onSelectionChange(nextSelection);
-
-    if (tool !== 'select') return;
 
     const start = toScene(e.clientX, e.clientY);
     const moving = tokens.filter((t) => nextSelection.includes(t.id));
@@ -343,8 +397,11 @@ export function MapCanvas({
   /* --- Rendu --------------------------------------------------------------- */
 
   const strokes = useMemo(
-    () => [...(scene?.drawings || []), ...(strokeDraft ? [strokeDraft] : [])],
-    [scene?.drawings, strokeDraft],
+    () => [
+      ...(scene?.drawings || []).filter((d) => !erasing?.has(d.id)),
+      ...(strokeDraft ? [strokeDraft] : []),
+    ],
+    [scene?.drawings, strokeDraft, erasing],
   );
 
   /** Cercle de portee max (vitesse de deplacement) affiche autour du pion seul
@@ -425,8 +482,9 @@ export function MapCanvas({
   const measureDistance = measure
     ? Math.round(
         (Math.hypot(measure.to.x - measure.from.x, measure.to.y - measure.from.y) / scalePx) *
-          (scene.scaleUnits || 1.5),
-      )
+          (scene.scaleUnits || 1.5) *
+          10,
+      ) / 10
     : 0;
 
   return (
@@ -542,7 +600,7 @@ export function MapCanvas({
         ) : null}
 
         {measure ? (
-          <svg className="map-layer measure" width={scene.width} height={scene.height}>
+          <svg className="map-layer measure" style={{ overflow: 'visible' }} width={scene.width} height={scene.height}>
             <line
               x1={measure.from.x}
               y1={measure.from.y}
@@ -590,6 +648,34 @@ export function MapCanvas({
       </div>
     </div>
   );
+}
+
+/** Distance d'un point au trace d'un dessin, en pixels de scene (pour la gomme). */
+function strokeDistance(stroke, p) {
+  const pts = stroke.points || [];
+  const [x1, y1, x2, y2] = pts;
+  if (stroke.tool === 'circle') {
+    return Math.abs(Math.hypot(p.x - x1, p.y - y1) - Math.hypot(x2 - x1, y2 - y1));
+  }
+  if (stroke.tool === 'rect') {
+    const corners = [x1, y1, x2, y1, x2, y2, x1, y2, x1, y1];
+    return polylineDistance(corners, p);
+  }
+  return polylineDistance(pts, p);
+}
+
+function polylineDistance(pts, p) {
+  if (pts.length < 2) return Infinity;
+  let best = Math.hypot(p.x - pts[0], p.y - pts[1]);
+  for (let i = 0; i + 3 < pts.length; i += 2) {
+    const [ax, ay, bx, by] = [pts[i], pts[i + 1], pts[i + 2], pts[i + 3]];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 ? clamp(((p.x - ax) * dx + (p.y - ay) * dy) / len2, 0, 1) : 0;
+    best = Math.min(best, Math.hypot(p.x - (ax + t * dx), p.y - (ay + t * dy)));
+  }
+  return best;
 }
 
 function StrokeShape({ stroke, gm }) {

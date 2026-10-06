@@ -288,6 +288,7 @@ export function TablePage() {
                   ['line', 'Ligne'],
                   ['rect', 'Rectangle'],
                   ['circle', 'Cercle'],
+                  ['eraser', 'Gomme'],
                 ].map(([key, label]) => (
                   <button
                     key={key}
@@ -330,14 +331,25 @@ export function TablePage() {
                   Calque MJ
                 </label>
               ) : null}
-              <button
-                type="button"
-                className="btn xs danger"
-                onClick={() => updateDrawings([])}
-                disabled={!scene?.drawings?.length}
-              >
-                Effacer tout
-              </button>
+              {isGM ? (
+                <button
+                  type="button"
+                  className="btn xs danger"
+                  onClick={() => updateDrawings([])}
+                  disabled={!scene?.drawings?.length}
+                >
+                  Effacer tout
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn xs danger"
+                  onClick={() => updateDrawings((scene?.drawings || []).filter((d) => d.ownerId !== me?.id))}
+                  disabled={!scene?.drawings?.some((d) => d.ownerId === me?.id)}
+                >
+                  Effacer mes dessins
+                </button>
+              )}
             </div>
           ) : null}
 
