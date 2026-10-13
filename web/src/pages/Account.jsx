@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/store.js';
 import { TopBar } from '../components/TopBar.jsx';
-import { Avatar, useToast } from '../components/Ui.jsx';
+import { Avatar, FileDrop, useToast } from '../components/Ui.jsx';
 
 export function AccountPage() {
   const user = useAuth((s) => s.user);
@@ -12,6 +12,7 @@ export function AccountPage() {
   const [email, setEmail] = useState(user?.email || '');
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
   const [busy, setBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const saveProfile = async (e) => {
     e.preventDefault();
@@ -31,12 +32,15 @@ export function AccountPage() {
     const form = new FormData();
     form.append('files', file);
     form.append('kind', 'PORTRAIT');
+    setAvatarBusy(true);
     try {
       const { assets } = await api.upload('/assets', form);
       await updateProfile({ avatarUrl: assets[0].url });
       toast('Avatar mis à jour', 'success');
     } catch (err) {
       toast(err.message, 'error');
+    } finally {
+      setAvatarBusy(false);
     }
   };
 
@@ -64,11 +68,13 @@ export function AccountPage() {
           <h3>Profil</h3>
           <div className="row" style={{ gap: 16 }}>
             <Avatar name={user?.username || '?'} url={user?.avatarUrl} size={72} />
-            <div className="col" style={{ gap: 8 }}>
-              <label className="btn sm">
-                Changer d'avatar
-                <input type="file" accept="image/*" hidden onChange={(e) => uploadAvatar(e.target.files[0])} />
-              </label>
+            <div className="col" style={{ gap: 8, flex: 1 }}>
+              <FileDrop
+                onFiles={(files) => uploadAvatar(files[0])}
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                multiple={false}
+                busy={avatarBusy}
+              />
               {user?.avatarUrl ? (
                 <button type="button" className="btn sm ghost" onClick={() => updateProfile({ avatarUrl: null })}>
                   Retirer

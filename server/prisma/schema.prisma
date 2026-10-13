@@ -159,6 +159,9 @@ model Token {
   speed    Int?
   /// Liste de conditions D&D : ["poisoned","prone", ...]
   conditions Json @default("[]")
+  /// Historique des variations de PV (MJ uniquement) :
+  /// [{ at, delta, hp, by }], du plus ancien au plus recent, borne a 100.
+  hpLog      Json @default("[]")
 
   showNameplate  Boolean @default(true)
   showHealthBar  Boolean @default(true)

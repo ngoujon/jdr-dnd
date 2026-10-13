@@ -247,6 +247,105 @@ export function NumberStepper({ value, onChange, min = -99, max = 999, className
   );
 }
 
+/* ------------------------------------------------------------ Fichiers --- */
+
+const matchesAccept = (file, accept) => {
+  if (!accept) return true;
+  return accept.split(',').some((rule) => {
+    const r = rule.trim().toLowerCase();
+    if (r.endsWith('/*')) return file.type.startsWith(r.slice(0, -1));
+    if (r.startsWith('.')) return file.name.toLowerCase().endsWith(r);
+    return file.type === r;
+  });
+};
+
+/**
+ * Suivi d'un glisser-deposer de fichiers depuis le systeme (ignore les
+ * glisser internes, ex. une ressource deplacee vers la carte).
+ */
+export function useFileDrop(onFiles, { accept, multiple = true, disabled } = {}) {
+  const [dragging, setDragging] = useState(false);
+  const depth = useRef(0);
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+
+  const handlers = {
+    onDragEnter: (e) => {
+      if (disabled || !hasFiles(e)) return;
+      e.preventDefault();
+      depth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (e) => {
+      if (disabled || !hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    },
+    onDragLeave: (e) => {
+      if (disabled || !hasFiles(e)) return;
+      depth.current = Math.max(0, depth.current - 1);
+      if (!depth.current) setDragging(false);
+    },
+    onDrop: (e) => {
+      if (disabled || !hasFiles(e)) return;
+      e.preventDefault();
+      depth.current = 0;
+      setDragging(false);
+      const files = [...e.dataTransfer.files].filter((f) => matchesAccept(f, accept));
+      if (files.length) onFiles(multiple ? files : files.slice(0, 1));
+    },
+  };
+  return { dragging, handlers };
+}
+
+/**
+ * Zone de depot : glisser-deposer des fichiers ou cliquer pour parcourir.
+ * Si `dragging` est fourni, la zone ne gere pas le depot elle-meme (un
+ * parent s'en charge) et se contente de refleter son etat.
+ */
+export function FileDrop({ onFiles, accept, multiple = true, busy, hint, dragging: external, className = '', children }) {
+  const inputRef = useRef(null);
+  const own = useFileDrop(onFiles, { accept, multiple, disabled: busy || external !== undefined });
+  const dragging = external ?? own.dragging;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={`file-drop ${dragging ? 'dragging' : ''} ${busy ? 'busy' : ''} ${className}`}
+      onClick={() => !busy && inputRef.current?.click()}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !busy) {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
+      {...(external === undefined ? own.handlers : {})}
+    >
+      {children}
+      <span className="file-drop-text">
+        {busy ? 'Envoi en cours…' : dragging ? 'Relâchez pour téléverser' : (
+          <>
+            <strong>Glissez-déposez</strong> {multiple ? 'vos fichiers' : 'une image'} ici ou <u>parcourez</u>
+          </>
+        )}
+      </span>
+      {hint && !busy && !dragging ? <span className="file-drop-hint">{hint}</span> : null}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        hidden
+        onChange={(e) => {
+          const files = [...e.target.files];
+          e.target.value = '';
+          if (files.length) onFiles(files);
+        }}
+      />
+    </div>
+  );
+}
+
 export function Spinner({ label = 'Chargement…' }) {
   return (
     <div className="spinner-wrap">

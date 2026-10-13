@@ -186,7 +186,7 @@ export const SPELL_ABILITY_BY_CLASS = {
  *  label. Convention de la VF : 5 pieds = 1,5 m, soit une case. Un label
  *  inconnu est traite comme des metres, l'unite par defaut des scenes. */
 export function feetToSceneUnits(feet, unitLabel = 'm') {
-  const label = String(unitLabel || 'm').trim().toLowerCase();
+  const label = String(unitLabel || 'm').trim().toLowerCase().replace(/\.+$/, '');
   if (/^(ft|feet|foot|pi|pied|pieds|')$/.test(label)) return feet;
   if (/^(case|cases|sq|square|squares|c)$/.test(label)) return feet / 5;
   if (/^(km|kilom)/.test(label)) return feet * 0.0003;

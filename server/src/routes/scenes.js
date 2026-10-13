@@ -4,22 +4,18 @@ import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody, notFound, forbidden } from '../lib/http.js';
 import { requireAuth, requireCampaignMember, requireGM } from '../lib/auth.js';
 import { emitToCampaign, emitToGMs } from '../realtime/hub.js';
+import { playerControlledIds, sanitizeTokenForPlayer } from '../lib/tokens.js';
 
 export const scenesRouter = Router({ mergeParams: true });
 scenesRouter.use(requireAuth, requireCampaignMember);
 
-/** Retire des pions les informations reservees au MJ. */
-export const sanitizeTokenForPlayer = (token) => ({
-  ...token,
-  // Un pion invisible n'est pas envoye du tout (filtre en amont) ; ici on masque
-  // seulement les métadonnées sensibles des PNJ que le joueur ne contrôle pas.
-  conditions: token.conditions,
-});
-
-export const visibleTokens = (tokens, { isGM, userId }) =>
-  tokens
-    .filter((t) => isGM || (t.visible && t.layer !== 'GM'))
-    .map((t) => (isGM ? t : sanitizeTokenForPlayer(t)));
+/** Pions visibles par l'utilisateur, debarrasses de ce qui est reserve au MJ. */
+export const visibleTokens = async (tokens, { isGM, gmId }) => {
+  if (isGM) return tokens;
+  const shown = tokens.filter((t) => t.visible && t.layer !== 'GM');
+  const controlled = await playerControlledIds(shown, gmId);
+  return shown.map((t) => sanitizeTokenForPlayer(t, controlled.has(t.id)));
+};
 
 const sceneSchema = z.object({
   name: z.string().min(1).max(80).optional(),
@@ -80,7 +76,7 @@ scenesRouter.get(
         ...scene,
         notes: req.isGM ? scene.notes : '',
         drawings: req.isGM ? scene.drawings : (scene.drawings || []).filter((d) => d?.layer !== 'GM'),
-        tokens: visibleTokens(scene.tokens, { isGM: req.isGM, userId: req.user.id }),
+        tokens: await visibleTokens(scene.tokens, { isGM: req.isGM, gmId: req.campaign.gmId }),
       },
     });
   }),

@@ -235,10 +235,7 @@ export function MapCanvas({
       hit(point);
       const onMove = (ev) => hit(toScene(ev.clientX, ev.clientY));
       const onUp = () => {
-        if (erased.size) {
-          const current = useTable.getState().scene?.drawings || [];
-          updateDrawings(current.filter((d) => !erased.has(d.id)));
-        }
+        if (erased.size) updateDrawings({ remove: [...erased] }).catch(() => {});
         setErasing(null);
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
@@ -269,7 +266,7 @@ export function MapCanvas({
       const onUp = () => {
         setStrokeDraft((s) => {
           if (s && s.points.length >= 4) {
-            updateDrawings([...(useTable.getState().scene?.drawings || []), s]);
+            updateDrawings({ add: [s] }).catch(() => {});
           }
           return null;
         });

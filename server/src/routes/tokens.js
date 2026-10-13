@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody, notFound, forbidden } from '../lib/http.js';
 import { requireAuth, requireCampaignMember } from '../lib/auth.js';
-import { emitToCampaign, emitToGMs } from '../realtime/hub.js';
+import { emitToCampaign, emitToGMs, emitToPlayers } from '../realtime/hub.js';
+import { playerControlledIds, sanitizeTokenForPlayer } from '../lib/tokens.js';
 
 export const tokensRouter = Router({ mergeParams: true });
 tokensRouter.use(requireAuth, requireCampaignMember);
@@ -26,6 +27,7 @@ const tokenSchema = z.object({
   ac: z.number().int().nullish(),
   speed: z.number().int().min(0).max(999).nullish(),
   conditions: z.array(z.string().max(40)).max(30).optional(),
+  hpLog: z.array(z.any()).max(100).optional(),
   showNameplate: z.boolean().optional(),
   showHealthBar: z.boolean().optional(),
   visible: z.boolean().optional(),
@@ -55,12 +57,20 @@ const loadToken = async (req) => {
   return token;
 };
 
-const broadcastToken = (campaignId, event, token) => {
-  if (token.visible && token.layer !== 'GM') {
-    emitToCampaign(campaignId, event, { token });
-  } else {
-    emitToGMs(campaignId, event, { token });
-  }
+/** Le MJ recoit le pion complet ; les joueurs, une version sans ses PV s'il
+ *  n'est pas controle par un joueur (et rien du tout s'il est cache). */
+const broadcastToken = async (campaign, event, token) => {
+  emitToGMs(campaign.id, event, { token });
+  if (!token.visible || token.layer === 'GM') return;
+  const controlled = await playerControlledIds([token], campaign.gmId);
+  emitToPlayers(campaign.id, event, { token: sanitizeTokenForPlayer(token, controlled.has(token.id)) });
+};
+
+/** Reponse HTTP : meme filtrage que la diffusion temps reel. */
+const tokenFor = async (req, token) => {
+  if (req.isGM) return token;
+  const controlled = await playerControlledIds([token], req.campaign.gmId);
+  return sanitizeTokenForPlayer(token, controlled.has(token.id));
 };
 
 tokensRouter.post(
@@ -89,8 +99,8 @@ tokensRouter.post(
     const token = await prisma.token.create({
       data: { ...data, zIndex: data.zIndex ?? (maxZ._max.zIndex ?? 0) + 1 },
     });
-    broadcastToken(req.campaign.id, 'token:created', token);
-    res.status(201).json({ token });
+    await broadcastToken(req.campaign, 'token:created', token);
+    res.status(201).json({ token: await tokenFor(req, token) });
   }),
 );
 
@@ -102,14 +112,45 @@ tokensRouter.patch(
     let data = parseBody(tokenSchema, req.body);
     if (!req.isGM) {
       // Les joueurs ne changent ni la visibilite, ni le verrou, ni le calque.
-      const { visible, locked, layer, ownerId, ...allowed } = data;
+      const { visible, locked, layer, ownerId, hpLog, ...allowed } = data;
       data = allowed;
+    }
+    // Une saisie directe des PV entre aussi dans l'historique du MJ.
+    if (data.hp != null && existing.hp != null && data.hp !== existing.hp && !data.hpLog) {
+      const log = Array.isArray(existing.hpLog) ? existing.hpLog : [];
+      const entry = { at: new Date().toISOString(), delta: data.hp - existing.hp, hp: data.hp, by: req.user.username };
+      data.hpLog = [...log, entry].slice(-100);
     }
     const token = await prisma.token.update({ where: { id: existing.id }, data });
     const becameHidden = existing.visible && !token.visible;
     if (becameHidden) emitToCampaign(req.campaign.id, 'token:removed', { tokenId: token.id });
-    broadcastToken(req.campaign.id, 'token:updated', token);
-    res.json({ token });
+    await broadcastToken(req.campaign, 'token:updated', token);
+    res.json({ token: await tokenFor(req, token) });
+  }),
+);
+
+/**
+ * Degats (delta negatif) ou soins (positif) sur un pion, journalises pour le
+ * suivi du MJ. Les PV sont bornes entre 0 et le maximum quand il est connu.
+ */
+tokensRouter.post(
+  '/:tokenId/hp',
+  asyncHandler(async (req, res) => {
+    const existing = await loadToken(req);
+    await assertCanEdit(req, existing);
+    const { delta } = parseBody(z.object({ delta: z.number().int().min(-9999).max(9999) }), req.body);
+    if (!delta) return res.json({ token: await tokenFor(req, existing) });
+    const before = existing.hp ?? existing.maxHp ?? 0;
+    const max = existing.maxHp ?? Infinity;
+    const hp = Math.max(0, Math.min(max, before + delta));
+    const log = Array.isArray(existing.hpLog) ? existing.hpLog : [];
+    const entry = { at: new Date().toISOString(), delta: hp - before, hp, by: req.user.username };
+    const token = await prisma.token.update({
+      where: { id: existing.id },
+      data: { hp, hpLog: [...log, entry].slice(-100) },
+    });
+    await broadcastToken(req.campaign, 'token:updated', token);
+    res.json({ token: await tokenFor(req, token) });
   }),
 );
 
@@ -142,8 +183,8 @@ tokensRouter.post(
         }),
       );
     }
-    for (const token of updated) broadcastToken(req.campaign.id, 'token:updated', token);
-    res.json({ tokens: updated });
+    for (const token of updated) await broadcastToken(req.campaign, 'token:updated', token);
+    res.json({ tokens: await Promise.all(updated.map((t) => tokenFor(req, t))) });
   }),
 );
 

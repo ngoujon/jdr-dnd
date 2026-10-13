@@ -223,7 +223,10 @@ export const useTable = create((set, get) => ({
 
     on('combat:updated', ({ combat }) => set({ combat }));
     on('asset:created', ({ assets }) =>
-      set((state) => ({ assets: [...assets, ...state.assets] })),
+      // Le televerseur recharge deja la liste : on evite les doublons.
+      set((state) => ({
+        assets: [...assets.filter((a) => !state.assets.some((b) => b.id === a.id)), ...state.assets],
+      })),
     );
 
     on('map:ping', (ping) => {
@@ -273,6 +276,45 @@ export const useTable = create((set, get) => ({
     }
   },
 
+  /** Degats (delta negatif) ou soins : journalises cote serveur pour le MJ. */
+  async adjustTokenHp(tokenId, delta) {
+    const { campaignId } = get();
+    const { token } = await api.post(`/campaigns/${campaignId}/tokens/${tokenId}/hp`, { delta });
+    set((state) => ({ tokens: replace(state.tokens, token) }));
+    return token;
+  },
+
+  /** Copie de pions (MJ), decalee d'une case et numerotee : « Gobelin 2 »… */
+  async duplicateTokens(tokenIds) {
+    const step = get().scene?.scalePx || 70;
+    const created = [];
+    for (const id of tokenIds) {
+      const source = byId(get().tokens, id);
+      if (!source) continue;
+      const base = (source.name || '').replace(/\s+\d+$/, '');
+      // Plus grand numero deja porte par un pion de meme nom (« Gobelin » compte pour 1).
+      let taken = 1;
+      for (const t of get().tokens) {
+        const name = t.name || '';
+        if (name.startsWith(`${base} `) && /^\d+$/.test(name.slice(base.length + 1))) {
+          taken = Math.max(taken, Number(name.slice(base.length + 1)));
+        }
+      }
+      const { id: _id, sceneId: _s, createdAt: _c, updatedAt: _u, zIndex: _z, hpLog: _l, ...copy } = source;
+      created.push(
+        await get().createToken({
+          ...copy,
+          name: base ? `${base} ${taken + 1}` : '',
+          // Une créature fraîche : PV pleins quand le maximum est connu.
+          hp: source.maxHp ?? source.hp,
+          x: source.x + step,
+          y: source.y + step,
+        }),
+      );
+    }
+    return created;
+  },
+
   async moveTokens(moves) {
     const { campaignId } = get();
     set((state) => ({
@@ -297,7 +339,9 @@ export const useTable = create((set, get) => ({
     set((state) => ({ scene: { ...state.scene, ...patch } }));
     const { scene: updated } = await api.patch(`/campaigns/${campaignId}/scenes/${scene.id}`, patch);
     set((state) => ({
-      scene: { ...updated, tokens: undefined },
+      // Les dessins sont synchronises en temps reel : la reponse HTTP peut
+      // etre anterieure au dernier coup de gomme, on garde donc l'etat local.
+      scene: { ...updated, drawings: state.scene?.drawings ?? updated.drawings, tokens: undefined },
       scenes: replace(state.scenes, updated),
     }));
   },
@@ -314,10 +358,22 @@ export const useTable = create((set, get) => ({
     return emitAck('fog:update', { campaignId, sceneId: scene.id, reveals });
   },
 
-  updateDrawings(drawings) {
-    const { campaignId, scene } = get();
-    set((state) => ({ scene: { ...state.scene, drawings } }));
-    return emitAck('draw:update', { campaignId, sceneId: scene.id, drawings });
+  /**
+   * Modifie le calque de dessin par differences : `add` (traits), `remove`
+   * (identifiants), `clear` (tout ce que l'on a le droit d'effacer). Le serveur
+   * les applique a son propre etat puis rediffuse la liste a jour.
+   */
+  updateDrawings({ add = [], remove = [], clear = false }) {
+    const { campaignId, scene, isGM } = get();
+    const me = useAuth.getState().user;
+    const removed = new Set(remove);
+    const removable = (d) => isGM || d.ownerId === me?.id;
+    set((state) => {
+      const kept = (state.scene?.drawings || []).filter((d) => !(removable(d) && (clear || removed.has(d.id))));
+      const ids = new Set(kept.map((d) => d.id));
+      return { scene: { ...state.scene, drawings: [...kept, ...add.filter((d) => !ids.has(d.id))] } };
+    });
+    return emitAck('draw:update', { campaignId, sceneId: scene.id, add, remove, clear });
   },
 
   /* --- Chat & des -------------------------------------------------------- */
@@ -385,7 +441,8 @@ export const useTable = create((set, get) => ({
 
   async refreshAssets() {
     const { campaignId } = get();
-    const { assets } = await api.get(`/assets?campaignId=${campaignId}`);
+    // Sans campagne ouverte : ressources personnelles et fournies uniquement.
+    const { assets } = await api.get(campaignId ? `/assets?campaignId=${campaignId}` : '/assets');
     set({ assets });
   },
 

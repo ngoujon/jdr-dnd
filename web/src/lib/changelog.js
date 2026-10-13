@@ -2,6 +2,21 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.10.0',
+    date: '2026-10-13',
+    changes: [
+      "Zone de glisser-déposer pour importer des images (bibliothèque, pions, portraits, avatar)",
+      "Une image importée depuis le choix d'un pion ou d'un portrait est appliquée directement",
+      "Import d'images réparé depuis la page Personnages et pour les pions des PNJ",
+      "Le gommage des dessins par le MJ ne fait plus réapparaître d'anciens traits",
+      "Un joueur n'ouvre plus que sa propre fiche ; le MJ les ouvre toutes",
+      "Fiche réduite : un panneau sur le côté du plateau, à côté de la fiche complète",
+      "Le MJ inflige dégâts et soins aux pions, avec un historique des PV",
+      "Les PV des PNJ et créatures ne sont plus jamais envoyés aux joueurs",
+      "Le MJ peut dupliquer un pion (bouton ou Ctrl/Cmd + D)",
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-10-06',
     changes: [

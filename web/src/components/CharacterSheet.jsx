@@ -41,11 +41,24 @@ export function CharacterSheet({ character: initial, onClose }) {
   const [confirm, confirmNode] = useConfirm();
   const [tab, setTab] = useState('main');
   const [hpDelta, setHpDelta] = useState(5);
+  // Fiche complete (modale) ou allegee (panneau lateral qui laisse voir le
+  // plateau). Le choix est memorise d'une ouverture a l'autre.
+  const [mode, setModeState] = useState(() => readPref(SHEET_MODE_KEY, 'full'));
+  const setMode = (next) => {
+    setModeState(next);
+    writePref(SHEET_MODE_KEY, next);
+  };
+
+  // Copie locale pour les fiches ouvertes hors d'une table (page Personnages) :
+  // elles ne sont pas dans le store, sans quoi un portrait choisi n'apparaitrait
+  // qu'apres reouverture de la fiche.
+  const [local, setLocal] = useState(initial);
+  useEffect(() => setLocal(initial), [initial]);
 
   // La fiche vit dans le store : elle se met à jour si un autre client l'edite.
   const character = useMemo(
-    () => characters.find((c) => c.id === initial?.id) || initial,
-    [characters, initial],
+    () => characters.find((c) => c.id === initial?.id) || local,
+    [characters, initial, local],
   );
   const editable = character && (character.ownerId === me?.id || isGM);
 
@@ -60,7 +73,10 @@ export function CharacterSheet({ character: initial, onClose }) {
 
   const save = (patch) => {
     if (!editable) return;
-    saveCharacter(character.id, patch).catch((err) => toast(err.message, 'error'));
+    setLocal((c) => (c ? { ...c, ...patch } : c));
+    saveCharacter(character.id, patch)
+      .then((saved) => saved && setLocal((c) => (c?.id === saved.id ? saved : c)))
+      .catch((err) => toast(err.message, 'error'));
   };
 
   const doRoll = (formula, label, advantage = 'none') =>
@@ -148,6 +164,28 @@ export function CharacterSheet({ character: initial, onClose }) {
         : hpRatio <= 0.5
           ? ['#d9a441', 'Blessé']
           : ['#57a866', 'En forme'];
+
+  if (mode === 'light') {
+    return (
+      <LightSheet
+        character={character}
+        derived={derived}
+        profs={profs}
+        editable={editable}
+        hpColor={hpColor}
+        hpState={hpState}
+        hpRatio={hpRatio}
+        hpDelta={hpDelta}
+        setHpDelta={setHpDelta}
+        adjustHp={adjustHp}
+        rollWithModifiers={rollWithModifiers}
+        doRoll={doRoll}
+        save={save}
+        onExpand={() => setMode('full')}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <Modal open title="" onClose={onClose} size="sheet">
@@ -324,6 +362,14 @@ export function CharacterSheet({ character: initial, onClose }) {
           </div>
 
           <div className="sheet-head-actions">
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => setMode('light')}
+              title="Version allégée, sur le côté du plateau"
+            >
+              Fiche réduite
+            </button>
             <button type="button" className="btn sm primary" onClick={dropOnMap}>
               Poser sur la carte
             </button>
@@ -407,6 +453,278 @@ export function CharacterSheet({ character: initial, onClose }) {
       </div>
       <CharacterPrintSheet character={character} derived={derived} prof={prof} profs={profs} />
     </Modal>
+  );
+}
+
+/* -------------------------------------------------------- Fiche reduite --- */
+
+const SHEET_MODE_KEY = 'tabletop.sheetMode';
+const SHEET_SIDE_KEY = 'tabletop.sheetSide';
+
+const readPref = (key, fallback) => {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+};
+const writePref = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* stockage indisponible : le choix vaut pour cette ouverture seulement */
+  }
+};
+
+/**
+ * Version allegee de la fiche : un panneau flottant qui reste ouvert pendant
+ * que l'on joue sur le plateau. On y trouve l'essentiel d'un tour de jeu (PV,
+ * CA, caracteristiques, sauvegardes, competences, attaques, emplacements) ; le
+ * reste s'edite dans la fiche complete.
+ */
+function LightSheet({
+  character, derived, profs, editable, hpColor, hpState, hpRatio, hpDelta, setHpDelta,
+  adjustHp, rollWithModifiers, doRoll, save, onExpand, onClose,
+}) {
+  const [side, setSideState] = useState(() => readPref(SHEET_SIDE_KEY, 'left'));
+  const [section, setSection] = useState('skills');
+  const setSide = (next) => {
+    setSideState(next);
+    writePref(SHEET_SIDE_KEY, next);
+  };
+  const abilities = character.abilities || {};
+  const attacks = character.attacks || [];
+  const slots = character.spellcasting?.slots || {};
+  const slotLevels = Object.keys(slots)
+    .map(Number)
+    .filter((level) => slots[level]?.max > 0)
+    .sort((a, b) => a - b);
+  const rollMode = (e) => (e.shiftKey ? 'advantage' : e.ctrlKey || e.metaKey ? 'disadvantage' : 'none');
+
+  return (
+    <aside className={`sheet-light card ${side}`} aria-label={`Fiche de ${character.name}`}>
+      <header className="sheet-light-head">
+        <span
+          className="sheet-light-portrait"
+          style={{
+            background: character.portraitUrl
+              ? `center/cover url(${character.portraitUrl})`
+              : character.style?.accent || 'var(--ink-700)',
+          }}
+        >
+          {!character.portraitUrl ? character.name?.[0]?.toUpperCase() : null}
+        </span>
+        <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+          <strong className="ellipsis">{character.name}</strong>
+          <span className="faint ellipsis" style={{ fontSize: 11 }}>
+            {[character.race, character.class].filter(Boolean).join(' · ')} · niv. {character.level}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn ghost icon xs"
+          onClick={() => setSide(side === 'left' ? 'right' : 'left')}
+          title="Changer de côté"
+          aria-label="Changer de côté"
+        >
+          ⇆
+        </button>
+        <button type="button" className="btn ghost icon xs" onClick={onExpand} title="Fiche complète" aria-label="Fiche complète">
+          ⤢
+        </button>
+        <button type="button" className="btn ghost icon xs" onClick={onClose} aria-label="Fermer">
+          ✕
+        </button>
+      </header>
+
+      <div className="sheet-light-body scroll">
+        <section className="light-hp" style={{ '--hp-color': hpColor }}>
+          <div className="row" style={{ gap: 6 }}>
+            <strong className="mono light-hp-value">
+              {character.hp}
+              <span className="faint"> / {character.maxHp}</span>
+            </strong>
+            {character.tempHp > 0 ? <span className="hp-temp-badge">+{character.tempHp} temp.</span> : null}
+            <span className="spacer" />
+            <span className="hp-state" style={{ color: hpColor }}>
+              {hpState}
+            </span>
+          </div>
+          <div className="light-hp-bar">
+            <span style={{ width: `${Math.max(0, Math.min(1, hpRatio)) * 100}%` }} />
+          </div>
+          {editable ? (
+            <div className="hp-actions">
+              <button type="button" className="btn xs danger" onClick={() => adjustHp(-hpDelta)} title="Dégâts">
+                −
+              </button>
+              <input
+                className="input sm center"
+                type="number"
+                value={hpDelta}
+                onChange={(e) => setHpDelta(Math.max(1, Number(e.target.value) || 1))}
+                aria-label="Points de vie à retirer ou rendre"
+              />
+              <button type="button" className="btn xs" onClick={() => adjustHp(hpDelta)} title="Soins">
+                +
+              </button>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="light-vitals">
+          <div>
+            <span className="label">CA</span>
+            <strong className="mono">{character.ac}</strong>
+          </div>
+          <button type="button" onClick={rollWithModifiers(derived.initiative ?? 0, 'Initiative')} title="Lancer l'initiative">
+            <span className="label">Init.</span>
+            <strong className="mono">{signed(derived.initiative ?? 0)}</strong>
+          </button>
+          <div>
+            <span className="label">Vitesse</span>
+            <strong className="mono">{character.speed}</strong>
+          </div>
+          <div title="Perception passive">
+            <span className="label">Perc. p.</span>
+            <strong className="mono">{derived.passivePerception ?? 10}</strong>
+          </div>
+        </section>
+
+        <section className="light-abilities">
+          {ABILITIES.map((ability) => {
+            const mod = derived.mods?.[ability.key] ?? modifier(abilities[ability.key] ?? 10);
+            const saveBonus = derived.saves?.[ability.key] ?? mod;
+            return (
+              <div key={ability.key} className="light-ability">
+                <span className="label">{ability.short}</span>
+                <button
+                  type="button"
+                  className="light-ability-mod mono"
+                  onClick={rollWithModifiers(mod, `Test de ${ability.label}`)}
+                  title={`Test de ${ability.label} (${abilities[ability.key] ?? 10}) — Maj : avantage, Ctrl : désavantage`}
+                >
+                  {signed(mod)}
+                </button>
+                <button
+                  type="button"
+                  className={`light-ability-save mono ${profs.saves?.[ability.key] ? 'proficient' : ''}`}
+                  onClick={rollWithModifiers(saveBonus, `Sauvegarde de ${ability.label}`)}
+                  title={`Sauvegarde de ${ability.label}`}
+                >
+                  sv {signed(saveBonus)}
+                </button>
+              </div>
+            );
+          })}
+        </section>
+
+        <div className="seg small light-tabs">
+          {[
+            ['skills', 'Compétences'],
+            ['attacks', 'Attaques'],
+            ...(slotLevels.length ? [['spells', 'Sorts']] : []),
+          ].map(([key, label]) => (
+            <button key={key} type="button" className={section === key ? 'active' : ''} onClick={() => setSection(key)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {section === 'skills' ? (
+          <ul className="light-list">
+            {SKILLS.map((skill) => {
+              const rank = profs.skills?.[skill.key] || 0;
+              const bonus = derived.skills?.[skill.key] ?? 0;
+              return (
+                <li key={skill.key}>
+                  <button type="button" onClick={rollWithModifiers(bonus, skill.label)} className={rank ? 'proficient' : ''}>
+                    <span className={`rank-dot r${rank}`} />
+                    <span className="ellipsis">{skill.label}</span>
+                    <span className="spacer" />
+                    <strong className="mono">{signed(bonus)}</strong>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        {section === 'attacks' ? (
+          attacks.length ? (
+            <ul className="light-list">
+              {attacks.map((attack, index) => (
+                <li key={attack.id || index} className="light-attack">
+                  <span className="ellipsis" style={{ flex: 1 }}>
+                    {attack.name}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn xs"
+                    onClick={(e) => doRoll(`1d20${signed(attack.bonus ?? 0)}`, `${attack.name} — attaque`, rollMode(e))}
+                    title="Jet d'attaque — Maj : avantage, Ctrl : désavantage"
+                  >
+                    {signed(attack.bonus ?? 0)}
+                  </button>
+                  {attack.damage ? (
+                    <button
+                      type="button"
+                      className="btn xs"
+                      onClick={() => doRoll(attack.damage, `${attack.name} — dégâts${attack.type ? ` (${attack.type})` : ''}`)}
+                      title="Jet de dégâts"
+                    >
+                      {attack.damage}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="faint" style={{ fontSize: 12 }}>
+              Aucune attaque. Ajoutez-en depuis la fiche complète (onglet Combat).
+            </p>
+          )
+        ) : null}
+
+        {section === 'spells' ? (
+          <div className="col" style={{ gap: 8 }}>
+            <div className="row faint" style={{ fontSize: 12, gap: 12 }}>
+              <span>DD {derived.spellSaveDc}</span>
+              <span>Attaque {signed(derived.spellAttack ?? 0)}</span>
+            </div>
+            {slotLevels.map((level) => {
+              const slot = slots[level];
+              return (
+                <div key={level} className="row" style={{ gap: 8 }}>
+                  <span className="faint" style={{ width: 44, fontSize: 12 }}>
+                    Niv. {level}
+                  </span>
+                  <div className="slot-pips">
+                    {Array.from({ length: Math.min(slot.max, 9) }).map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`slot-pip ${i < slot.used ? 'used' : ''}`}
+                        disabled={!editable}
+                        onClick={() =>
+                          save({
+                            spellcasting: {
+                              ...character.spellcasting,
+                              slots: { ...slots, [level]: { ...slot, used: i < slot.used ? i : i + 1 } },
+                            },
+                          })
+                        }
+                        title={i < slot.used ? 'Restaurer' : 'Dépenser'}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </aside>
   );
 }
 

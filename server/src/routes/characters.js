@@ -55,7 +55,11 @@ const characterSchema = z.object({
  */
 const view = withDerived;
 
-/** Vérifie l'accès : propriétaire, MJ de la campagne, ou fiche partagée. */
+/**
+ * Vérifie l'accès à une fiche : seuls son propriétaire et le MJ de la campagne
+ * peuvent l'ouvrir. Les autres joueurs ne voient que le résumé affiché dans le
+ * panneau Groupe (liste de campagne), jamais la fiche complète.
+ */
 const loadCharacter = async (req, { forWrite }) => {
   const character = await prisma.character.findUnique({
     where: { id: req.params.characterId },
@@ -66,12 +70,7 @@ const loadCharacter = async (req, { forWrite }) => {
   const isGM = character.campaign?.gmId === req.user.id;
   if (isOwner || isGM) return { character, isOwner, isGM };
   if (forWrite) throw forbidden('Vous ne pouvez pas modifier ce personnage');
-  if (!character.shared || !character.campaignId) throw forbidden('Fiche privée');
-  const member = await prisma.membership.findUnique({
-    where: { campaignId_userId: { campaignId: character.campaignId, userId: req.user.id } },
-  });
-  if (!member) throw forbidden('Fiche privée');
-  return { character, isOwner: false, isGM: false };
+  throw forbidden('Seuls son joueur et le MJ peuvent ouvrir cette fiche');
 };
 
 charactersRouter.get(

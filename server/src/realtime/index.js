@@ -236,33 +236,39 @@ export const attachRealtime = (httpServer) => {
       }
     });
 
-    /** Calque de dessin partage (traits du MJ et des joueurs). */
-    socket.on('draw:update', async ({ campaignId, sceneId, drawings }, ack) => {
+    /**
+     * Calque de dessin partage (traits du MJ et des joueurs).
+     * Le client n'envoie que des differences (traits ajoutes, traits retires,
+     * effacement) appliquees a l'etat serveur : renvoyer la liste complete
+     * depuis un etat local perime faisait reapparaitre des traits gommes ou
+     * disparaitre ceux traces entre-temps par d'autres.
+     */
+    socket.on('draw:update', async ({ campaignId, sceneId, add, remove, clear }, ack) => {
       try {
         const access = await membershipOf(campaignId, user.id);
         if (!access) return ack?.({ error: 'Accès refusé' });
-        if (!Array.isArray(drawings) || drawings.length > 5000) return ack?.({ error: 'Données invalides' });
+        if ((add && !Array.isArray(add)) || (remove && !Array.isArray(remove))) {
+          return ack?.({ error: 'Données invalides' });
+        }
         const current = await prisma.scene.findFirst({ where: { id: sceneId, campaignId }, select: { drawings: true } });
         if (!current) return ack?.({ error: 'Scène introuvable' });
         const existing = Array.isArray(current.drawings) ? current.drawings : [];
-        const existingIds = new Set(existing.map((d) => d?.id));
-        const incoming = drawings.filter((d) => d && typeof d === 'object' && typeof d.id === 'string');
-        // Les nouveaux traits sont signes par leur auteur : c'est ce qui permet a un
-        // joueur de gommer les siens sans toucher a ceux des autres.
-        const stamped = incoming.map((d) => (existingIds.has(d.id) ? d : { ...d, ownerId: user.id }));
-        let next;
-        if (access.isGM) {
-          next = stamped;
-        } else {
-          // Un joueur ne voit pas le calque MJ et ne peut retirer que ses propres
-          // traits : on repart de l'etat serveur et on n'applique que ses changements.
-          const incomingIds = new Set(stamped.map((d) => d.id));
-          next = existing.filter((d) => d?.ownerId !== user.id || incomingIds.has(d.id));
-          for (const d of stamped) {
-            if (!existingIds.has(d.id)) next.push({ ...d, layer: 'ALL' });
-          }
-          if (next.length > 5000) return ack?.({ error: 'Données invalides' });
+        // Le MJ gomme tout ; un joueur ne retire que ses propres traits.
+        const removable = (d) => access.isGM || d?.ownerId === user.id;
+
+        const removed = new Set((remove || []).filter((id) => typeof id === 'string'));
+        let next = existing.filter((d) => !(removable(d) && (clear || removed.has(d?.id))));
+
+        const ids = new Set(next.map((d) => d?.id));
+        for (const d of add || []) {
+          if (!d || typeof d !== 'object' || typeof d.id !== 'string' || ids.has(d.id)) continue;
+          // Les nouveaux traits sont signes par leur auteur ; un joueur n'ecrit
+          // jamais sur le calque MJ.
+          next.push({ ...d, ownerId: user.id, layer: access.isGM && d.layer === 'GM' ? 'GM' : 'ALL' });
+          ids.add(d.id);
         }
+        if (next.length > 5000) return ack?.({ error: 'Trop de dessins sur cette scène' });
+
         const scene = await prisma.scene.update({ where: { id: sceneId }, data: { drawings: next } });
         emitToCampaign(campaignId, 'draw:updated', {
           sceneId: scene.id,

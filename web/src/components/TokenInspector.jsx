@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTable } from '../lib/store.js';
 import { CONDITIONS } from '../lib/dnd.js';
-import { Modal, LazyInput } from './Ui.jsx';
+import { Modal, LazyInput, useToast } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 
 /// Multiples de la longueur de reference de la scene, nommes d'apres les
@@ -22,12 +22,25 @@ export function TokenInspector({ tokenId, onClose }) {
   const characters = useTable((s) => s.characters);
   const patchToken = useTable((s) => s.patchToken);
   const deleteToken = useTable((s) => s.deleteToken);
+  const adjustTokenHp = useTable((s) => s.adjustTokenHp);
+  const duplicateTokens = useTable((s) => s.duplicateTokens);
+  const toast = useToast();
   const [picking, setPicking] = useState(false);
+  const [amount, setAmount] = useState('');
 
   if (!token) return null;
   const scalePx = scene?.scalePx || 70;
   const character = characters.find((c) => c.id === token.characterId);
   const set = (patch) => patchToken(token.id, patch).catch(() => {});
+  const applyHp = (sign) => {
+    const value = Math.abs(Math.round(Number(amount)));
+    if (!value) return;
+    adjustTokenHp(token.id, sign * value)
+      .then(() => setAmount(''))
+      .catch((err) => toast(err.message, 'error'));
+  };
+  const hpLog = Array.isArray(token.hpLog) ? token.hpLog : [];
+  const damageTaken = hpLog.reduce((sum, e) => sum + (e.delta < 0 ? -e.delta : 0), 0);
 
   return (
     <aside className="token-inspector card">
@@ -48,6 +61,16 @@ export function TokenInspector({ tokenId, onClose }) {
         <button type="button" className="btn sm block" onClick={() => setPicking(true)}>
           Changer l'image
         </button>
+        {isGM ? (
+          <button
+            type="button"
+            className="btn sm"
+            title="Dupliquer le pion (Ctrl/Cmd + D)"
+            onClick={() => duplicateTokens([token.id]).catch((err) => toast(err.message, 'error'))}
+          >
+            Dupliquer
+          </button>
+        ) : null}
       </div>
 
       <div className="field">
@@ -66,6 +89,64 @@ export function TokenInspector({ tokenId, onClose }) {
           ))}
         </div>
       </div>
+
+      <div className="field">
+        <label>Dégâts / soins</label>
+        <form
+          className="hp-adjust"
+          onSubmit={(e) => {
+            e.preventDefault();
+            applyHp(-1);
+          }}
+        >
+          <input
+            className="input sm"
+            type="number"
+            min="0"
+            inputMode="numeric"
+            placeholder="Montant"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <button type="submit" className="btn sm danger" disabled={!Number(amount)} title="Entrée : dégâts">
+            − Dégâts
+          </button>
+          <button type="button" className="btn sm" disabled={!Number(amount)} onClick={() => applyHp(1)}>
+            + Soins
+          </button>
+        </form>
+      </div>
+
+      {isGM && hpLog.length ? (
+        <div className="field">
+          <label className="row">
+            Historique des PV
+            <span className="spacer" />
+            <span className="faint">{damageTaken} dégâts subis</span>
+          </label>
+          <ol className="hp-log scroll">
+            {hpLog
+              .slice()
+              .reverse()
+              .map((entry) => (
+                <li key={entry.at + entry.delta}>
+                  <span className={entry.delta < 0 ? 'dmg' : 'heal'}>
+                    {entry.delta > 0 ? '+' : ''}
+                    {entry.delta}
+                  </span>
+                  <span className="faint">→ {entry.hp} PV</span>
+                  <span className="spacer" />
+                  <span className="faint">
+                    {entry.by} · {new Date(entry.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </li>
+              ))}
+          </ol>
+          <button type="button" className="btn xs ghost" onClick={() => set({ hpLog: [] })}>
+            Effacer l'historique
+          </button>
+        </div>
+      ) : null}
 
       <div className="grid-2">
         <div className="field">
@@ -164,6 +245,11 @@ export function TokenInspector({ tokenId, onClose }) {
         />
         Afficher la barre de vie
       </label>
+      {isGM ? (
+        <p className="faint" style={{ fontSize: 11, margin: 0 }}>
+          Les PV des pions qui n'appartiennent pas à un joueur ne sont jamais envoyés aux joueurs.
+        </p>
+      ) : null}
 
       {isGM ? (
         <>

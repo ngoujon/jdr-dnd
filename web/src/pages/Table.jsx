@@ -44,6 +44,7 @@ export function TablePage() {
   const createToken = useTable((s) => s.createToken);
   const deleteToken = useTable((s) => s.deleteToken);
   const updateDrawings = useTable((s) => s.updateDrawings);
+  const duplicateTokens = useTable((s) => s.duplicateTokens);
   const me = useAuth((s) => s.user);
   const toast = useToast();
 
@@ -73,6 +74,17 @@ export function TablePage() {
     const onKey = (e) => {
       const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable;
       if (typing) return;
+      if (e.metaKey || e.ctrlKey) {
+        // Ctrl/Cmd + D : le MJ duplique la selection (et selectionne les copies).
+        if (e.key.toLowerCase() === 'd' && isGM && selection.length) {
+          e.preventDefault();
+          duplicateTokens(selection)
+            .then((copies) => setSelection(copies.map((t) => t.id)))
+            .catch(() => {});
+        }
+        // Les autres combinaisons (copier, coller…) ne changent pas d'outil.
+        return;
+      }
       const map = { v: 'select', h: 'pan', m: 'measure', p: 'ping', d: 'draw', r: 'fog-reveal', f: 'fog-hide' };
       const next = map[e.key.toLowerCase()];
       if (next && (isGM || !next.startsWith('fog'))) {
@@ -89,7 +101,7 @@ export function TablePage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selection, deleteToken, isGM]);
+  }, [selection, deleteToken, duplicateTokens, isGM]);
 
   const myCharacters = useMemo(
     () => characters.filter((c) => c.ownerId === me?.id && !c.isNpc),
@@ -335,7 +347,7 @@ export function TablePage() {
                 <button
                   type="button"
                   className="btn xs danger"
-                  onClick={() => updateDrawings([])}
+                  onClick={() => updateDrawings({ clear: true })}
                   disabled={!scene?.drawings?.length}
                 >
                   Effacer tout
@@ -344,7 +356,7 @@ export function TablePage() {
                 <button
                   type="button"
                   className="btn xs danger"
-                  onClick={() => updateDrawings((scene?.drawings || []).filter((d) => d.ownerId !== me?.id))}
+                  onClick={() => updateDrawings({ clear: true })}
                   disabled={!scene?.drawings?.some((d) => d.ownerId === me?.id)}
                 >
                   Effacer mes dessins
@@ -407,7 +419,7 @@ export function TablePage() {
         </aside>
       </div>
 
-      {openCharacter ? (
+      {openCharacter && (isGM || openCharacter.ownerId === me?.id) ? (
         <CharacterSheet character={openCharacter} onClose={() => setOpenCharacter(null)} />
       ) : null}
 

@@ -1,7 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useTable } from '../lib/store.js';
-import { useToast } from './Ui.jsx';
+import { FileDrop, useFileDrop, useToast } from './Ui.jsx';
+
+// Doit rester aligne sur ALLOWED_MIME cote serveur : le selecteur de fichiers
+// ne propose ainsi que ce qui sera accepte (pas de HEIC refuse apres coup).
+const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif,audio/mpeg,audio/ogg,audio/wav,application/pdf';
 
 const KINDS = [
   { key: 'ALL', label: 'Tout' },
@@ -21,7 +25,6 @@ export function AssetLibrary({ onPick, filterKind, compact, uploadKind = 'MISC' 
   const refreshAssets = useTable((s) => s.refreshAssets);
   const campaignId = useTable((s) => s.campaignId);
   const toast = useToast();
-  const inputRef = useRef(null);
   const [kind, setKind] = useState(filterKind || 'ALL');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
@@ -39,17 +42,26 @@ export function AssetLibrary({ onPick, filterKind, compact, uploadKind = 'MISC' 
     });
   }, [assets, kind, query]);
 
+  // Hors d'une campagne (page Personnages, Mon compte) la bibliotheque n'a
+  // jamais ete chargee : on la recupere a l'ouverture.
+  useEffect(() => {
+    if (!campaignId) refreshAssets().catch(() => {});
+  }, [campaignId, refreshAssets]);
+
   const upload = async (files) => {
     if (!files?.length) return;
     const form = new FormData();
     for (const file of files) form.append('files', file);
-    form.append('kind', filterKind || uploadKind);
+    form.append('kind', filterKind || (kind !== 'ALL' ? kind : uploadKind));
     if (campaignId) form.append('campaignId', campaignId);
     setBusy(true);
     try {
-      await api.upload('/assets', form);
+      const { assets: uploaded } = await api.upload('/assets', form);
       await refreshAssets();
       toast(`${files.length} fichier(s) ajouté(s)`, 'success');
+      // Un seul fichier envoyé depuis un sélecteur (pion, portrait…) : on le
+      // choisit directement plutôt que de forcer à le retrouver dans la grille.
+      if (onPick && files.length === 1 && filterKind && uploaded?.length === 1) onPick(uploaded[0]);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -67,48 +79,39 @@ export function AssetLibrary({ onPick, filterKind, compact, uploadKind = 'MISC' 
     }
   };
 
+  // Toute la bibliotheque accepte le depot ; la zone ne fait que l'afficher.
+  const drop = useFileDrop(upload, { accept: ACCEPT, disabled: busy });
+
   return (
-    <div className={`asset-library ${compact ? 'compact' : ''}`}>
+    <div className={`asset-library ${compact ? 'compact' : ''} ${drop.dragging ? 'dragging' : ''}`} {...drop.handlers}>
       <div className="asset-toolbar">
-        {!filterKind ? (
-          <div className="seg small">
-            {KINDS.map((k) => (
-              <button key={k.key} type="button" className={kind === k.key ? 'active' : ''} onClick={() => setKind(k.key)}>
-                {k.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
+        {/* Les onglets restent visibles meme filtre : une image deja importee
+            dans une autre categorie doit pouvoir servir de pion ou de portrait. */}
+        <div className="seg small">
+          {KINDS.filter((k) => !filterKind || k.key !== 'AUDIO').map((k) => (
+            <button key={k.key} type="button" className={kind === k.key ? 'active' : ''} onClick={() => setKind(k.key)}>
+              {k.label}
+            </button>
+          ))}
+        </div>
         <input
           className="input sm"
           placeholder="Rechercher…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="button" className="btn sm primary" disabled={busy} onClick={() => inputRef.current?.click()}>
-          {busy ? '…' : 'Téléverser'}
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept="image/*,audio/*,application/pdf"
-          hidden
-          onChange={(e) => {
-            upload([...e.target.files]);
-            e.target.value = '';
-          }}
-        />
       </div>
 
-      <div
-        className="asset-grid scroll"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          upload([...e.dataTransfer.files]);
-        }}
-      >
+      <FileDrop
+        onFiles={upload}
+        accept={ACCEPT}
+        busy={busy}
+        dragging={drop.dragging}
+        className="asset-drop"
+        hint="PNG, JPG, WebP, GIF, SVG · 25 Mo max"
+      />
+
+      <div className="asset-grid scroll">
         {filtered.map((asset) => (
           <button
             key={asset.id}
@@ -140,7 +143,7 @@ export function AssetLibrary({ onPick, filterKind, compact, uploadKind = 'MISC' 
         ))}
         {!filtered.length ? (
           <div className="empty" style={{ gridColumn: '1/-1' }}>
-            Aucune ressource. Glissez-deposez vos images ici.
+            Aucune ressource dans cette catégorie.
           </div>
         ) : null}
       </div>

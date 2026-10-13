@@ -763,6 +763,8 @@
   color: inherit;
 }
 .party-char:hover { border-color: var(--brass-dim); background: var(--ink-750); }
+.party-char.locked { cursor: default; }
+.party-char.locked:hover { border-color: var(--line-soft); background: var(--ink-800); }
 .party-portrait { width: 34px; height: 34px; border-radius: 50%; flex: none; background-size: cover; }
 .party-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 11px; color: var(--text-faint); font-style: normal; }
 .party-stats em { font-style: normal; }
@@ -894,6 +896,41 @@
   font-size: 10px;
 }
 .asset-card:hover .asset-del { display: flex; }
+
+.asset-library.dragging .asset-grid { opacity: 0.45; }
+.asset-drop { margin: 0 10px; }
+.asset-library.compact .asset-drop { padding: 10px; }
+
+/* ------------------------------------------------------ Zone de depot --- */
+
+.file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 12px;
+  border: 1.5px dashed var(--ink-500);
+  border-radius: var(--radius-sm);
+  background: var(--ink-850);
+  color: var(--text-dim);
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.file-drop:hover,
+.file-drop:focus-visible { border-color: var(--brass-dim); color: var(--text); }
+.file-drop strong { color: var(--brass-bright); font-weight: 600; }
+.file-drop u { text-decoration-color: var(--brass-dim); text-underline-offset: 2px; }
+.file-drop.dragging {
+  border-color: var(--brass);
+  border-style: solid;
+  background: rgba(192, 135, 63, 0.12);
+  color: var(--brass-bright);
+}
+.file-drop.busy { cursor: progress; opacity: 0.7; }
+.file-drop-hint { font-size: 11px; color: var(--text-faint); }
 
 /* ----------------------------------------------------------- Documents --- */
 
@@ -1633,4 +1670,134 @@
 
 @media (max-width: 760px) {
   .spell-picker { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------ Suivi des PV --- */
+
+.hp-adjust { display: flex; gap: 6px; }
+.hp-adjust .input { flex: 1; min-width: 0; }
+.hp-log {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  max-height: 140px;
+  overflow-y: auto;
+  font-size: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+}
+.hp-log li { display: flex; align-items: center; gap: 6px; padding: 3px 8px; }
+.hp-log li + li { border-top: 1px solid var(--line-soft); }
+.hp-log .dmg { color: var(--danger); font-weight: 600; min-width: 34px; }
+.hp-log .heal { color: var(--success); font-weight: 600; min-width: 34px; }
+
+/* ------------------------------------------------------- Fiche reduite --- */
+
+/* Panneau flottant au-dessus du plateau : la carte reste visible et jouable
+   a cote. Cote droit, il s'arrete avant le panneau lateral (chat, groupe). */
+.sheet-light {
+  position: fixed;
+  /* Sous la barre d'outils du plateau, qui reste accessible. */
+  top: calc(var(--topbar-h) + 56px);
+  bottom: 12px;
+  width: 300px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.sheet-light.left { left: 48px; }
+.sheet-light.right { right: calc(var(--right-rail-w) + 12px); }
+.sheet-light-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--ink-800);
+}
+.sheet-light-portrait {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border: 1px solid var(--brass-dim);
+}
+.sheet-light-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.sheet-light .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+
+.light-hp { display: flex; flex-direction: column; gap: 6px; }
+.light-hp-value { font-size: 20px; }
+.light-hp-value .faint { font-size: 13px; }
+.light-hp-bar { height: 6px; border-radius: 3px; background: var(--ink-700); overflow: hidden; }
+.light-hp-bar span { display: block; height: 100%; background: var(--hp-color); transition: width 0.2s; }
+
+.light-vitals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.light-vitals > * {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--ink-850);
+  color: inherit;
+}
+.light-vitals button { cursor: pointer; }
+.light-vitals button:hover { border-color: var(--brass-dim); }
+.light-vitals strong { font-size: 16px; }
+
+.light-abilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.light-ability {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--ink-850);
+}
+.light-ability-mod,
+.light-ability-save { background: none; border: 0; color: inherit; cursor: pointer; padding: 1px 6px; border-radius: 4px; }
+.light-ability-mod { font-size: 17px; font-weight: 700; }
+.light-ability-save { font-size: 11px; color: var(--text-dim); }
+.light-ability-save.proficient { color: var(--brass-bright); }
+.light-ability-mod:hover,
+.light-ability-save:hover { background: var(--ink-700); }
+
+.light-tabs { align-self: flex-start; }
+.light-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.light-list li > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+.light-list li > button:hover { background: var(--ink-750); color: var(--text); }
+.light-list li > button.proficient { color: var(--text); }
+.light-attack { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 12.5px; }
+.light-attack + .light-attack { border-top: 1px solid var(--line-soft); }
+.rank-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-500); flex: none; }
+.rank-dot.r1 { background: var(--brass); border-color: var(--brass); }
+.rank-dot.r2 { background: var(--brass-bright); border-color: var(--brass-bright); box-shadow: 0 0 0 2px rgba(224, 167, 92, 0.3); }
+
+@media (max-width: 760px) {
+  .sheet-light,
+  .sheet-light.left,
+  .sheet-light.right { left: 8px; right: 8px; width: auto; top: auto; height: 60vh; bottom: 8px; }
 }

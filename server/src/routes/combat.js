@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody } from '../lib/http.js';
 import { requireAuth, requireCampaignMember, requireGM } from '../lib/auth.js';
-import { emitToCampaign } from '../realtime/hub.js';
+import { emitToGMs, emitToPlayers } from '../realtime/hub.js';
 
 export const combatRouter = Router({ mergeParams: true });
 combatRouter.use(requireAuth, requireCampaignMember);
@@ -31,9 +31,20 @@ const ensureCombat = async (campaignId) => {
 const forPlayers = (combat) => ({
   ...combat,
   entries: (combat.entries || []).map((e) =>
-    e.visible === false ? { id: e.id, name: '???', initiative: e.initiative, isNpc: true, hidden: true } : e,
+    e.visible === false
+      ? { id: e.id, name: '???', initiative: e.initiative, isNpc: true, hidden: true }
+      : // Les PV et la CA des PNJ et creatures restent l'affaire du MJ.
+        e.isNpc
+        ? { ...e, hp: null, maxHp: null, ac: null }
+        : e,
   ),
 });
+
+/** Le MJ garde l'ordre complet ; les joueurs recoivent la version filtree. */
+const broadcastCombat = (campaignId, combat) => {
+  emitToGMs(campaignId, 'combat:updated', { combat });
+  emitToPlayers(campaignId, 'combat:updated', { combat: forPlayers(combat) });
+};
 
 combatRouter.get(
   '/',
@@ -58,7 +69,7 @@ combatRouter.put(
     );
     await ensureCombat(req.campaign.id);
     const combat = await prisma.combat.update({ where: { campaignId: req.campaign.id }, data });
-    emitToCampaign(req.campaign.id, 'combat:updated', { combat: forPlayers(combat) });
+    broadcastCombat(req.campaign.id, combat);
     res.json({ combat });
   }),
 );
@@ -77,7 +88,7 @@ combatRouter.post(
       where: { campaignId: req.campaign.id },
       data: { turnIndex: wrapped ? 0 : next, round: wrapped ? current.round + 1 : current.round },
     });
-    emitToCampaign(req.campaign.id, 'combat:updated', { combat: forPlayers(combat) });
+    broadcastCombat(req.campaign.id, combat);
     res.json({ combat });
   }),
 );
@@ -97,7 +108,7 @@ combatRouter.post(
         round: first ? Math.max(1, current.round - 1) : current.round,
       },
     });
-    emitToCampaign(req.campaign.id, 'combat:updated', { combat: forPlayers(combat) });
+    broadcastCombat(req.campaign.id, combat);
     res.json({ combat });
   }),
 );

@@ -67,12 +67,17 @@ export function PartyPanel({ onOpenCharacter, onWhisper }) {
                     </button>
                   ) : null}
                 </div>
-                {owned.map((character) => (
+                {owned.map((character) => {
+                  // Un joueur n'ouvre que sa propre fiche ; le MJ les ouvre toutes.
+                  const canOpen = isGM || character.ownerId === me?.id;
+                  return (
                   <button
                     key={character.id}
                     type="button"
-                    className="party-char"
-                    onClick={() => onOpenCharacter(character)}
+                    className={`party-char ${canOpen ? '' : 'locked'}`}
+                    disabled={!canOpen}
+                    title={canOpen ? undefined : 'Seuls son joueur et le MJ peuvent ouvrir cette fiche'}
+                    onClick={() => canOpen && onOpenCharacter(character)}
                   >
                     <span
                       className="party-portrait"
@@ -96,7 +101,8 @@ export function PartyPanel({ onOpenCharacter, onWhisper }) {
                       <em title="Initiative">{signed(character.derived?.initiative ?? 0)}</em>
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </li>
             );
           })}

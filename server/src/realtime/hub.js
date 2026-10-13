@@ -18,6 +18,11 @@ export const emitToCampaign = (campaignId, event, payload) => {
   io?.to(roomCampaign(campaignId)).emit(event, payload);
 };
 
+/** Diffuse a la table sauf aux MJ (qui recoivent une version complete a part). */
+export const emitToPlayers = (campaignId, event, payload) => {
+  io?.to(roomCampaign(campaignId)).except(roomGM(campaignId)).emit(event, payload);
+};
+
 /** Diffuse uniquement aux MJ (pions caches, notes de scene, PNJ secrets). */
 export const emitToGMs = (campaignId, event, payload) => {
   io?.to(roomGM(campaignId)).emit(event, payload);
