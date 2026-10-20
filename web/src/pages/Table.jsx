@@ -13,6 +13,7 @@ import { TokenInspector } from '../components/TokenInspector.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
 import { WhisperDock } from '../components/WhisperDock.jsx';
 import { Tabs, Spinner, useToast, Avatar } from '../components/Ui.jsx';
+import { IconPanelOpen } from '../components/Icons.jsx';
 
 const TOOLS = [
   { key: 'select', icon: '⬚', label: 'Sélection', hint: 'Déplacer et sélectionner les pions' },
@@ -262,11 +263,12 @@ export function TablePage() {
             ) : (
               <button
                 type="button"
-                className="rail-toggle"
+                className="player-sheet-open"
                 onClick={() => setLeftOpen(true)}
                 title="Afficher ma fiche"
               >
-                ›
+                <IconPanelOpen />
+                <span>Ma fiche</span>
               </button>
             )}
           </aside>

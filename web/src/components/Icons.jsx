@@ -119,3 +119,42 @@ export const IconPlus = () => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
+
+/** Quatre fleches vers les coins : ouvrir en grand. */
+export const IconExpand = () => (
+  <svg {...base}>
+    <path d="M14 4h6v6M10 20H4v-6" />
+    <path d="m20 4-6.5 6.5M4 20l6.5-6.5" />
+  </svg>
+);
+
+/** Panneau lateral et chevron vers le bord : replier la barre. */
+export const IconPanelCollapse = () => (
+  <svg {...base}>
+    <rect x="3.5" y="4" width="17" height="16" rx="2" />
+    <path d="M9 4v16" />
+    <path d="m16 9.5-2.5 2.5 2.5 2.5" />
+  </svg>
+);
+
+/** Panneau lateral et chevron vers l'interieur : deplier la barre. */
+export const IconPanelOpen = () => (
+  <svg {...base}>
+    <rect x="3.5" y="4" width="17" height="16" rx="2" />
+    <path d="M9 4v16" />
+    <path d="m13.5 9.5 2.5 2.5-2.5 2.5" />
+  </svg>
+);
+
+export const IconSwap = () => (
+  <svg {...base}>
+    <path d="M4 8h15M15.5 4.5 19 8l-3.5 3.5" />
+    <path d="M20 16H5M8.5 12.5 5 16l3.5 3.5" />
+  </svg>
+);
+
+export const IconClose = () => (
+  <svg {...base}>
+    <path d="m6 6 12 12M18 6 6 18" />
+  </svg>
+);

@@ -8,6 +8,7 @@ import { api } from '../lib/api.js';
 import { Modal, LazyInput, Spinner, InfoTip, FieldLabel, useToast, useConfirm } from './Ui.jsx';
 import {
   IconCharacter, IconSkills, IconCombat, IconSpells, IconGear, IconStory, IconLook, IconNotes,
+  IconExpand, IconPanelCollapse, IconSwap, IconClose,
 } from './Icons.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 import { TokenStyler } from './TokenStyler.jsx';
@@ -532,24 +533,36 @@ function LightSheet({
         {!docked ? (
           <button
             type="button"
-            className="btn ghost icon xs"
+            className="sheet-light-action"
             onClick={() => setSide(side === 'left' ? 'right' : 'left')}
             title="Changer de côté"
             aria-label="Changer de côté"
           >
-            ⇆
+            <IconSwap />
           </button>
         ) : null}
-        <button type="button" className="btn ghost icon xs" onClick={onExpand} title="Fiche complète" aria-label="Fiche complète">
-          ⤢
+        <button
+          type="button"
+          className="sheet-light-action"
+          onClick={onExpand}
+          title="Ouvrir la fiche complète"
+          aria-label="Ouvrir la fiche complète"
+        >
+          <IconExpand />
         </button>
         {docked ? (
-          <button type="button" className="btn ghost icon xs" onClick={onClose} title="Replier la fiche" aria-label="Replier la fiche">
-            ‹
+          <button
+            type="button"
+            className="sheet-light-action"
+            onClick={onClose}
+            title="Replier la barre"
+            aria-label="Replier la barre"
+          >
+            <IconPanelCollapse />
           </button>
         ) : (
-          <button type="button" className="btn ghost icon xs" onClick={onClose} aria-label="Fermer">
-            ✕
+          <button type="button" className="sheet-light-action" onClick={onClose} title="Fermer" aria-label="Fermer">
+            <IconClose />
           </button>
         )}
       </header>
@@ -740,6 +753,11 @@ function LightSheet({
             })}
           </div>
         ) : null}
+
+        <button type="button" className="btn sm sheet-light-expand" onClick={onExpand}>
+          <IconExpand />
+          Ouvrir la fiche complète
+        </button>
       </div>
     </aside>
   );

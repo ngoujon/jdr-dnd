@@ -1743,6 +1743,24 @@
   font-weight: 700;
   border: 1px solid var(--brass-dim);
 }
+/* Boutons d'en-tete assez grands pour etre reconnus d'un coup d'oeil. */
+.sheet-light-action {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: var(--ink-750);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.sheet-light-action:hover { color: var(--brass-bright); border-color: var(--brass-dim); }
+.sheet-light-expand { justify-content: center; gap: 8px; margin-top: 4px; }
+.sheet-light-expand svg { font-size: 16px; }
 .sheet-light-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 .sheet-light .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
 
@@ -1820,6 +1838,30 @@
 /* Fiche du joueur ancree dans la barre de gauche : acces rapide permanent,
    sans recouvrir le plateau. */
 .player-sheet-rail.open { width: 316px; }
+.player-sheet-rail:not(.open) { width: 44px; }
+/* Barre repliee : toute la hauteur est cliquable, avec une etiquette lisible. */
+.player-sheet-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  background: none;
+  border: 0;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.player-sheet-open svg { font-size: 24px; }
+.player-sheet-open span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.player-sheet-open:hover { color: var(--brass-bright); background: var(--ink-800); }
 .player-sheet-switch { margin: 8px 8px 0; flex-wrap: wrap; }
 .sheet-light.docked {
   position: static;
