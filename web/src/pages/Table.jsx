@@ -52,9 +52,11 @@ export function TablePage() {
   const [brush, setBrush] = useState({ color: '#e0a75c', width: 4, shape: 'pen', gmOnly: false });
   const [selection, setSelection] = useState([]);
   const [rightTab, setRightTab] = useState('chat');
-  const [leftOpen, setLeftOpen] = useState(false);
+  // Ouverte d'emblee : outils de preparation pour le MJ, fiche pour le joueur.
+  const [leftOpen, setLeftOpen] = useState(true);
   const [leftTab, setLeftTab] = useState('scenes');
   const [openCharacter, setOpenCharacter] = useState(null);
+  const [sheetId, setSheetId] = useState(null);
   const [speakingAs, setSpeakingAs] = useState(null);
   const [whisperTarget, setWhisperTarget] = useState(null);
   const viewRef = useRef({});
@@ -63,11 +65,6 @@ export function TablePage() {
     open(campaignId);
     return () => reset();
   }, [campaignId, open, reset]);
-
-  // Le MJ garde ses outils de preparation sous la main.
-  useEffect(() => {
-    if (isGM) setLeftOpen(true);
-  }, [isGM]);
 
   /** Raccourcis clavier façon logiciels de dessin. */
   useEffect(() => {
@@ -107,6 +104,15 @@ export function TablePage() {
     () => characters.filter((c) => c.ownerId === me?.id && !c.isNpc),
     [characters, me],
   );
+  const sheetCharacter = myCharacters.find((c) => c.id === sheetId) || myCharacters[0] || null;
+
+  /** Le MJ ouvre la fiche complete ; le joueur affiche la sienne dans sa barre. */
+  const openSheet = (character) => {
+    if (isGM) return setOpenCharacter(character);
+    if (character.ownerId !== me?.id) return;
+    setSheetId(character.id);
+    setLeftOpen(true);
+  };
 
   /** Depot d'une ressource depuis la bibliotheque directement sur la carte. */
   const onDropAsset = async (event) => {
@@ -232,6 +238,37 @@ export function TablePage() {
                 </div>
               </>
             ) : null}
+          </aside>
+        ) : sheetCharacter ? (
+          <aside className={`left-rail player-sheet-rail ${leftOpen ? 'open' : ''}`}>
+            {leftOpen ? (
+              <>
+                {myCharacters.length > 1 ? (
+                  <div className="seg small player-sheet-switch">
+                    {myCharacters.map((character) => (
+                      <button
+                        key={character.id}
+                        type="button"
+                        className={character.id === sheetCharacter.id ? 'active' : ''}
+                        onClick={() => setSheetId(character.id)}
+                      >
+                        {character.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <CharacterSheet docked character={sheetCharacter} onClose={() => setLeftOpen(false)} />
+              </>
+            ) : (
+              <button
+                type="button"
+                className="rail-toggle"
+                onClick={() => setLeftOpen(true)}
+                title="Afficher ma fiche"
+              >
+                ›
+              </button>
+            )}
           </aside>
         ) : null}
 
@@ -374,7 +411,7 @@ export function TablePage() {
             viewRef={viewRef}
             onOpenToken={(token) => {
               const character = characters.find((c) => c.id === token.characterId);
-              if (character) setOpenCharacter(character);
+              if (character) openSheet(character);
             }}
           />
 
@@ -406,7 +443,7 @@ export function TablePage() {
             ) : null}
             {rightTab === 'party' ? (
               <PartyPanel
-                onOpenCharacter={setOpenCharacter}
+                onOpenCharacter={openSheet}
                 onWhisper={(member) => {
                   setWhisperTarget(member);
                   setRightTab('chat');
@@ -419,7 +456,7 @@ export function TablePage() {
         </aside>
       </div>
 
-      {openCharacter && (isGM || openCharacter.ownerId === me?.id) ? (
+      {openCharacter && isGM ? (
         <CharacterSheet character={openCharacter} onClose={() => setOpenCharacter(null)} />
       ) : null}
 

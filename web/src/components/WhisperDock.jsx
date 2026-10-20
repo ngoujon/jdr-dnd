@@ -87,9 +87,10 @@ export function WhisperDock() {
           [other]: {
             ...thread,
             // Un message reçu dans une fenêtre réduite ne la déplie pas de
-            // force : il s'annonce par un compteur sur la barre du bas.
+            // force : il s'annonce par un compteur sur la barre du bas. Tant
+            // qu'il n'est pas lu, l'onglet ou la fenêtre clignote.
             minimized: thread ? thread.minimized : !mine ? false : true,
-            unread: thread?.minimized && !mine ? (thread.unread ?? 0) + 1 : (thread?.unread ?? 0),
+            unread: !mine ? (thread?.unread ?? 0) + 1 : (thread?.unread ?? 0),
             history: thread?.history ? [...thread.history, message] : thread?.history,
           },
         };
@@ -125,6 +126,13 @@ export function WhisperDock() {
               }))
             }
             onClose={() => close(userId)}
+            onRead={() =>
+              thread.unread &&
+              setThreads((current) => ({
+                ...current,
+                [userId]: { ...current[userId], unread: 0 },
+              }))
+            }
             onSend={(text) => sendChat(`/w ${membersById.get(userId)?.username || ''} ${text}`)}
           />
         ))}
@@ -154,7 +162,7 @@ export function WhisperDock() {
   );
 }
 
-function WhisperWindow({ member, thread, me, onMinimize, onClose, onSend }) {
+function WhisperWindow({ member, thread, me, onMinimize, onClose, onRead, onSend }) {
   const [text, setText] = useState('');
   const bodyRef = useRef(null);
 
@@ -171,10 +179,16 @@ function WhisperWindow({ member, thread, me, onMinimize, onClose, onSend }) {
   };
 
   return (
-    <section className="whisper-window">
+    // Cliquer ou écrire dans la fenêtre vaut lecture : le clignotement cesse.
+    <section
+      className={`whisper-window ${thread.unread ? 'has-unread' : ''}`}
+      onMouseDown={onRead}
+      onFocusCapture={onRead}
+    >
       <header className="whisper-head">
-        <Avatar name={member?.username || '?'} url={member?.avatarUrl} size={22} />
+        <Avatar name={member?.username || '?'} url={member?.avatarUrl} size={24} />
         <strong className="ellipsis">{member?.username || 'Joueur'}</strong>
+        {thread.unread ? <em className="whisper-badge">{thread.unread}</em> : null}
         <span className="spacer" />
         <button type="button" className="btn ghost xs" onClick={onMinimize} title="Réduire">
           –

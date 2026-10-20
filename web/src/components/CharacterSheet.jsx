@@ -28,7 +28,11 @@ const TABS = [
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export function CharacterSheet({ character: initial, onClose }) {
+/**
+ * `docked` : la fiche reduite vit dans la barre laterale gauche du joueur ;
+ * la fiche complete s'ouvre alors par-dessus, sans fermer la barre.
+ */
+export function CharacterSheet({ character: initial, onClose, docked = false }) {
   const characters = useTable((s) => s.characters);
   const saveCharacter = useTable((s) => s.saveCharacter);
   const deleteCharacter = useTable((s) => s.deleteCharacter);
@@ -48,6 +52,7 @@ export function CharacterSheet({ character: initial, onClose }) {
     setModeState(next);
     writePref(SHEET_MODE_KEY, next);
   };
+  const [expanded, setExpanded] = useState(false);
 
   // Copie locale pour les fiches ouvertes hors d'une table (page Personnages) :
   // elles ne sont pas dans le store, sans quoi un portrait choisi n'apparaitrait
@@ -165,9 +170,9 @@ export function CharacterSheet({ character: initial, onClose }) {
           ? ['#d9a441', 'Blessé']
           : ['#57a866', 'En forme'];
 
-  if (mode === 'light') {
-    return (
+  const lightSheet = (
       <LightSheet
+        docked={docked}
         character={character}
         derived={derived}
         profs={profs}
@@ -181,14 +186,17 @@ export function CharacterSheet({ character: initial, onClose }) {
         rollWithModifiers={rollWithModifiers}
         doRoll={doRoll}
         save={save}
-        onExpand={() => setMode('full')}
+        onExpand={() => (docked ? setExpanded(true) : setMode('full'))}
         onClose={onClose}
       />
-    );
-  }
+  );
+
+  if (docked ? !expanded : mode === 'light') return lightSheet;
 
   return (
-    <Modal open title="" onClose={onClose} size="sheet">
+    <>
+    {docked ? lightSheet : null}
+    <Modal open title="" onClose={docked ? () => setExpanded(false) : onClose} size="sheet">
       {confirmNode}
       <div className="sheet">
         <header className="sheet-head">
@@ -365,7 +373,7 @@ export function CharacterSheet({ character: initial, onClose }) {
             <button
               type="button"
               className="btn sm"
-              onClick={() => setMode('light')}
+              onClick={() => (docked ? setExpanded(false) : setMode('light'))}
               title="Version allégée, sur le côté du plateau"
             >
               Fiche réduite
@@ -453,6 +461,7 @@ export function CharacterSheet({ character: initial, onClose }) {
       </div>
       <CharacterPrintSheet character={character} derived={derived} prof={prof} profs={profs} />
     </Modal>
+    </>
   );
 }
 
@@ -483,7 +492,7 @@ const writePref = (key, value) => {
  * reste s'edite dans la fiche complete.
  */
 function LightSheet({
-  character, derived, profs, editable, hpColor, hpState, hpRatio, hpDelta, setHpDelta,
+  docked, character, derived, profs, editable, hpColor, hpState, hpRatio, hpDelta, setHpDelta,
   adjustHp, rollWithModifiers, doRoll, save, onExpand, onClose,
 }) {
   const [side, setSideState] = useState(() => readPref(SHEET_SIDE_KEY, 'left'));
@@ -502,7 +511,7 @@ function LightSheet({
   const rollMode = (e) => (e.shiftKey ? 'advantage' : e.ctrlKey || e.metaKey ? 'disadvantage' : 'none');
 
   return (
-    <aside className={`sheet-light card ${side}`} aria-label={`Fiche de ${character.name}`}>
+    <aside className={`sheet-light card ${docked ? 'docked' : side}`} aria-label={`Fiche de ${character.name}`}>
       <header className="sheet-light-head">
         <span
           className="sheet-light-portrait"
@@ -520,21 +529,29 @@ function LightSheet({
             {[character.race, character.class].filter(Boolean).join(' · ')} · niv. {character.level}
           </span>
         </div>
-        <button
-          type="button"
-          className="btn ghost icon xs"
-          onClick={() => setSide(side === 'left' ? 'right' : 'left')}
-          title="Changer de côté"
-          aria-label="Changer de côté"
-        >
-          ⇆
-        </button>
+        {!docked ? (
+          <button
+            type="button"
+            className="btn ghost icon xs"
+            onClick={() => setSide(side === 'left' ? 'right' : 'left')}
+            title="Changer de côté"
+            aria-label="Changer de côté"
+          >
+            ⇆
+          </button>
+        ) : null}
         <button type="button" className="btn ghost icon xs" onClick={onExpand} title="Fiche complète" aria-label="Fiche complète">
           ⤢
         </button>
-        <button type="button" className="btn ghost icon xs" onClick={onClose} aria-label="Fermer">
-          ✕
-        </button>
+        {docked ? (
+          <button type="button" className="btn ghost icon xs" onClick={onClose} title="Replier la fiche" aria-label="Replier la fiche">
+            ‹
+          </button>
+        ) : (
+          <button type="button" className="btn ghost icon xs" onClick={onClose} aria-label="Fermer">
+            ✕
+          </button>
+        )}
       </header>
 
       <div className="sheet-light-body scroll">

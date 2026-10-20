@@ -2,6 +2,15 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.11.0',
+    date: '2026-10-20',
+    changes: [
+      "La fiche du joueur s'affiche dans une barre à gauche du plateau, toujours à portée de main",
+      "Une conversation privée clignote tant que son message n'est pas lu",
+      "Fenêtres de conversation privée plus grandes et plus lisibles",
+    ],
+  },
+  {
     version: '0.10.0',
     date: '2026-10-13',
     changes: [
