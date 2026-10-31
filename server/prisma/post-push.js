@@ -33,8 +33,42 @@ async function renameDetailsNotes() {
   if (renamed) console.log(`[post-push] champ « notes » renomme sur ${renamed} fiche(s)`);
 }
 
+/**
+ * Les pions lies a une fiche prennent les PV de la fiche.
+ *
+ * Avant la synchronisation fiche <-> pion, les deux valeurs vivaient
+ * separement et la barre de vie de la carte pouvait etre fausse. La fiche fait
+ * foi. Rejouable : un pion deja a jour n'est pas modifie.
+ */
+async function alignTokenHpWithCharacters() {
+  const tokens = await prisma.token.findMany({
+    where: { characterId: { not: null } },
+    select: { id: true, hp: true, maxHp: true, characterId: true },
+  });
+  if (!tokens.length) return;
+  const characters = await prisma.character.findMany({
+    where: { id: { in: [...new Set(tokens.map((t) => t.characterId))] } },
+    select: { id: true, hp: true, maxHp: true },
+  });
+  const byId = new Map(characters.map((c) => [c.id, c]));
+
+  let aligned = 0;
+  for (const token of tokens) {
+    const character = byId.get(token.characterId);
+    if (!character || (token.hp === character.hp && token.maxHp === character.maxHp)) continue;
+    await prisma.token.update({
+      where: { id: token.id },
+      data: { hp: character.hp, maxHp: character.maxHp },
+    });
+    aligned += 1;
+  }
+
+  if (aligned) console.log(`[post-push] PV de ${aligned} pion(s) alignes sur leur fiche`);
+}
+
 try {
   await renameDetailsNotes();
+  await alignTokenHpWithCharacters();
 } catch (error) {
   console.error('[post-push] avertissement :', error.message);
 } finally {

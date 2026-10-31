@@ -1867,6 +1867,10 @@
 }
 .light-vitals button { cursor: pointer; }
 .light-vitals button:hover { border-color: var(--brass-dim); }
+/* Le jet d'initiative doit se voir cliquable d'un coup d'oeil. */
+.light-vitals .light-roll { border-color: var(--brass-dim); background: rgba(192, 135, 63, 0.1); }
+.light-vitals .light-roll:hover { border-color: var(--brass); background: rgba(192, 135, 63, 0.2); }
+.light-vitals .light-roll strong { color: var(--brass-bright); }
 .light-vitals strong { font-size: 16px; }
 
 .light-abilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }

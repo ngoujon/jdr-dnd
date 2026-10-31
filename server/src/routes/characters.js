@@ -5,6 +5,7 @@ import { asyncHandler, parseBody, notFound, forbidden } from '../lib/http.js';
 import { requireAuth } from '../lib/auth.js';
 import { withDerived } from '../lib/dnd.js';
 import { emitToCampaign, emitToGMs } from '../realtime/hub.js';
+import { applyHpDelta, emitCharacterHp, syncTokensFromCharacter } from '../lib/hpSync.js';
 
 export const charactersRouter = Router();
 charactersRouter.use(requireAuth);
@@ -171,6 +172,9 @@ charactersRouter.patch(
       const payload = { character: view(character) };
       if (character.isNpc) emitToGMs(character.campaignId, 'character:updated', payload);
       else emitToCampaign(character.campaignId, 'character:updated', payload);
+      if (data.hp !== undefined || data.maxHp !== undefined) {
+        await syncTokensFromCharacter(character, { by: req.user.username });
+      }
     }
     res.json({ character: view(character) });
   }),
@@ -223,28 +227,13 @@ charactersRouter.post(
       z.object({ delta: z.number().int().min(-999).max(999), temp: z.boolean().default(false) }),
       req.body,
     );
-    let { hp, tempHp } = existing;
-    if (temp) {
-      tempHp = Math.max(0, tempHp + delta);
-    } else if (delta < 0) {
-      const absorbed = Math.min(tempHp, -delta);
-      tempHp -= absorbed;
-      hp = Math.max(-existing.maxHp, hp + delta + absorbed);
-    } else {
-      hp = Math.min(existing.maxHp, hp + delta);
-    }
     const character = await prisma.character.update({
       where: { id: existing.id },
-      data: { hp, tempHp },
+      data: applyHpDelta(existing, delta, { temp }),
     });
-    if (character.campaignId) {
-      emitToCampaign(character.campaignId, 'character:hp', {
-        characterId: character.id,
-        hp: character.hp,
-        tempHp: character.tempHp,
-        maxHp: character.maxHp,
-      });
-    }
+    emitCharacterHp(character);
+    // La barre de vie des pions de ce personnage suit la fiche.
+    await syncTokensFromCharacter(character, { by: req.user.username });
     res.json({ character: view(character) });
   }),
 );

@@ -607,8 +607,15 @@ function LightSheet({
             <span className="label">CA</span>
             <strong className="mono">{character.ac}</strong>
           </div>
-          <button type="button" onClick={rollWithModifiers(derived.initiative ?? 0, 'Initiative')} title="Lancer l'initiative">
-            <span className="label">Init.</span>
+          <button
+            type="button"
+            className="light-roll"
+            onClick={rollWithModifiers(derived.initiative ?? 0, 'Initiative')}
+            title="Lancer l'initiative dans le chat — Maj : avantage, Ctrl : désavantage"
+          >
+            <span className="label">
+              <span aria-hidden="true">🎲 </span>Init.
+            </span>
             <strong className="mono">{signed(derived.initiative ?? 0)}</strong>
           </button>
           <div>

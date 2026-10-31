@@ -3,8 +3,15 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody, notFound, forbidden } from '../lib/http.js';
 import { requireAuth, requireCampaignMember } from '../lib/auth.js';
-import { emitToCampaign, emitToGMs, emitToPlayers } from '../realtime/hub.js';
+import { emitToCampaign } from '../realtime/hub.js';
 import { playerControlledIds, sanitizeTokenForPlayer } from '../lib/tokens.js';
+import {
+  applyHpDelta,
+  broadcastToken,
+  emitCharacterHp,
+  syncCharacterFromToken,
+  syncTokensFromCharacter,
+} from '../lib/hpSync.js';
 
 export const tokensRouter = Router({ mergeParams: true });
 tokensRouter.use(requireAuth, requireCampaignMember);
@@ -57,15 +64,6 @@ const loadToken = async (req) => {
   return token;
 };
 
-/** Le MJ recoit le pion complet ; les joueurs, une version sans ses PV s'il
- *  n'est pas controle par un joueur (et rien du tout s'il est cache). */
-const broadcastToken = async (campaign, event, token) => {
-  emitToGMs(campaign.id, event, { token });
-  if (!token.visible || token.layer === 'GM') return;
-  const controlled = await playerControlledIds([token], campaign.gmId);
-  emitToPlayers(campaign.id, event, { token: sanitizeTokenForPlayer(token, controlled.has(token.id)) });
-};
-
 /** Reponse HTTP : meme filtrage que la diffusion temps reel. */
 const tokenFor = async (req, token) => {
   if (req.isGM) return token;
@@ -91,6 +89,17 @@ tokensRouter.post(
       data.ownerId = req.user.id;
       data.layer = 'TOKEN';
       data.visible = true;
+    }
+    // Un pion de personnage part avec les PV de sa fiche : sa barre est juste d'emblee.
+    if (data.characterId) {
+      const character = await prisma.character.findUnique({
+        where: { id: data.characterId },
+        select: { hp: true, maxHp: true },
+      });
+      if (character) {
+        data.hp = character.hp;
+        data.maxHp = character.maxHp;
+      }
     }
     const maxZ = await prisma.token.aggregate({
       where: { sceneId: scene.id },
@@ -125,6 +134,15 @@ tokensRouter.patch(
     const becameHidden = existing.visible && !token.visible;
     if (becameHidden) emitToCampaign(req.campaign.id, 'token:removed', { tokenId: token.id });
     await broadcastToken(req.campaign, 'token:updated', token);
+    // Pion lie a une fiche (ou fraichement lie) : la fiche et ses autres pions suivent.
+    if (token.characterId) {
+      if (data.characterId && data.characterId !== existing.characterId && data.hp === undefined) {
+        const character = await prisma.character.findUnique({ where: { id: token.characterId } });
+        if (character) await syncTokensFromCharacter(character, { by: req.user.username });
+      } else if (data.hp !== undefined || data.maxHp !== undefined) {
+        await syncCharacterFromToken(token, { by: req.user.username });
+      }
+    }
     res.json({ token: await tokenFor(req, token) });
   }),
 );
@@ -140,6 +158,23 @@ tokensRouter.post(
     await assertCanEdit(req, existing);
     const { delta } = parseBody(z.object({ delta: z.number().int().min(-9999).max(9999) }), req.body);
     if (!delta) return res.json({ token: await tokenFor(req, existing) });
+
+    // Pion de personnage : les degats passent par la fiche (PV temporaires
+    // compris), qui reporte ensuite le resultat sur tous ses pions.
+    const character = existing.characterId
+      ? await prisma.character.findUnique({ where: { id: existing.characterId } })
+      : null;
+    if (character) {
+      const updated = await prisma.character.update({
+        where: { id: character.id },
+        data: applyHpDelta(character, delta),
+      });
+      emitCharacterHp(updated);
+      await syncTokensFromCharacter(updated, { by: req.user.username });
+      const token = await prisma.token.findUnique({ where: { id: existing.id } });
+      return res.json({ token: await tokenFor(req, token) });
+    }
+
     const before = existing.hp ?? existing.maxHp ?? 0;
     const max = existing.maxHp ?? Infinity;
     const hp = Math.max(0, Math.min(max, before + delta));

@@ -228,9 +228,11 @@ export const useTable = create((set, get) => ({
     on('character:updated', ({ character }) =>
       set((state) => ({ characters: replace(state.characters, character) })),
     );
-    on('character:hp', ({ characterId, hp, tempHp }) =>
+    on('character:hp', ({ characterId, hp, tempHp, maxHp }) =>
       set((state) => ({
-        characters: state.characters.map((c) => (c.id === characterId ? { ...c, hp, tempHp } : c)),
+        characters: state.characters.map((c) =>
+          c.id === characterId ? { ...c, hp, tempHp, ...(maxHp != null ? { maxHp } : {}) } : c,
+        ),
       })),
     );
     on('character:deleted', ({ characterId }) =>
