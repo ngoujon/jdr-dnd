@@ -51,6 +51,11 @@ export const useAuth = create((set) => ({
 /* --------------------------------------------------------------- Table --- */
 
 const byId = (list, id) => list.find((item) => item.id === id);
+/** Champs d'une scene affiches dans la liste du MJ : le reste (brouillard, dessins…) n'y sert pas. */
+const LIST_FIELDS = ['name', 'order', 'backgroundUrl', 'width', 'height', 'folderId'];
+const listFields = (patch) =>
+  Object.fromEntries(Object.entries(patch).filter(([key]) => LIST_FIELDS.includes(key)));
+
 const replace = (list, item) => {
   const index = list.findIndex((entry) => entry.id === item.id);
   if (index === -1) return [...list, item];
@@ -65,6 +70,8 @@ const initialTable = {
   isGM: false,
   scene: null,
   scenes: [],
+  /** Dossiers de rangement des scenes (MJ seulement). */
+  sceneFolders: [],
   tokens: [],
   characters: [],
   handouts: [],
@@ -94,7 +101,13 @@ export const useTable = create((set, get) => ({
     try {
       const { campaign } = await api.get(`/campaigns/${campaignId}`);
       const isGM = campaign.isGM;
-      set({ campaign, isGM, scenes: campaign.scenes || [], combat: campaign.combat || null });
+      set({
+        campaign,
+        isGM,
+        scenes: campaign.scenes || [],
+        sceneFolders: campaign.sceneFolders || [],
+        combat: campaign.combat || null,
+      });
 
       const [chars, handouts, messages, assets] = await Promise.all([
         api.get(`/characters?campaignId=${campaignId}`),
@@ -172,6 +185,16 @@ export const useTable = create((set, get) => ({
       if (sceneId !== get().scene?.id) return;
       set((state) => ({ scene: { ...state.scene, ...patch } }));
     });
+    // Cote MJ : garde la liste a jour (nom, dossier…) quand un autre onglet modifie une scene.
+    on('scene:updated-gm', ({ sceneId, patch }) =>
+      set((state) => ({
+        scenes: state.scenes.map((s) => (s.id === sceneId ? { ...s, ...listFields(patch) } : s)),
+        scene: state.scene?.id === sceneId && 'folderId' in patch
+          ? { ...state.scene, folderId: patch.folderId }
+          : state.scene,
+      })),
+    );
+    on('scene-folders:updated', ({ folders }) => set({ sceneFolders: folders }));
     on('scene:created', ({ scene }) =>
       set((state) => ({ scenes: replace(state.scenes, scene) })),
     );
@@ -244,7 +267,55 @@ export const useTable = create((set, get) => ({
     const { campaignId } = get();
     if (!campaignId) return;
     const { campaign } = await api.get(`/campaigns/${campaignId}`);
-    set({ campaign, isGM: campaign.isGM, scenes: campaign.scenes || [] });
+    set({
+      campaign,
+      isGM: campaign.isGM,
+      scenes: campaign.scenes || [],
+      sceneFolders: campaign.sceneFolders || [],
+    });
+  },
+
+  /* --- Dossiers de scenes ----------------------------------------------- */
+
+  async createSceneFolder(name) {
+    const { campaignId } = get();
+    const { folder, folders } = await api.post(`/campaigns/${campaignId}/scene-folders`, { name });
+    set({ sceneFolders: folders });
+    return folder;
+  },
+
+  async renameSceneFolder(folderId, name) {
+    const { campaignId } = get();
+    const { folders } = await api.patch(`/campaigns/${campaignId}/scene-folders/${folderId}`, { name });
+    set({ sceneFolders: folders });
+  },
+
+  async deleteSceneFolder(folderId) {
+    const { campaignId } = get();
+    const { folders } = await api.del(`/campaigns/${campaignId}/scene-folders/${folderId}`);
+    set((state) => ({
+      sceneFolders: folders,
+      scenes: state.scenes.map((s) => (s.folderId === folderId ? { ...s, folderId: null } : s)),
+    }));
+  },
+
+  /** Range une scene (pas forcement celle ouverte) dans un dossier, ou a la racine avec null. */
+  async moveSceneToFolder(sceneId, folderId) {
+    const { campaignId } = get();
+    // Mise a jour immediate de la liste, le serveur confirme ensuite.
+    const apply = (value) =>
+      set((state) => ({
+        scenes: state.scenes.map((s) => (s.id === sceneId ? { ...s, folderId: value } : s)),
+        scene: state.scene?.id === sceneId ? { ...state.scene, folderId: value } : state.scene,
+      }));
+    const previous = get().scenes.find((s) => s.id === sceneId)?.folderId ?? null;
+    apply(folderId);
+    try {
+      await api.patch(`/campaigns/${campaignId}/scenes/${sceneId}`, { folderId });
+    } catch (err) {
+      apply(previous);
+      throw err;
+    }
   },
 
   /* --- Actions pions ---------------------------------------------------- */

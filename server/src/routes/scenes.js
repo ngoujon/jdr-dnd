@@ -31,7 +31,15 @@ const sceneSchema = z.object({
   fogReveals: z.array(z.any()).max(5000).optional(),
   drawings: z.array(z.any()).max(5000).optional(),
   order: z.number().int().min(0).max(999).optional(),
+  folderId: z.string().max(40).nullish(),
 });
+
+/** Refuse un dossier qui n'appartient pas a la campagne. */
+const checkFolder = async (folderId, campaignId) => {
+  if (!folderId) return;
+  const folder = await prisma.sceneFolder.findFirst({ where: { id: folderId, campaignId } });
+  if (!folder) throw notFound('Dossier introuvable');
+};
 
 scenesRouter.get(
   '/',
@@ -51,6 +59,7 @@ scenesRouter.post(
   requireGM,
   asyncHandler(async (req, res) => {
     const data = parseBody(sceneSchema.extend({ name: z.string().min(1).max(80) }), req.body);
+    await checkFolder(data.folderId, req.campaign.id);
     const count = await prisma.scene.count({ where: { campaignId: req.campaign.id } });
     const scene = await prisma.scene.create({
       data: { ...data, order: data.order ?? count, campaignId: req.campaign.id },
@@ -91,10 +100,11 @@ scenesRouter.patch(
       where: { id: req.params.sceneId, campaignId: req.campaign.id },
     });
     if (!existing) throw notFound('Scène introuvable');
+    await checkFolder(data.folderId, req.campaign.id);
     const scene = await prisma.scene.update({ where: { id: req.params.sceneId }, data });
     emitToCampaign(req.campaign.id, 'scene:updated', {
       sceneId: scene.id,
-      patch: { ...data, notes: undefined },
+      patch: { ...data, notes: undefined, folderId: undefined },
     });
     emitToGMs(req.campaign.id, 'scene:updated-gm', { sceneId: scene.id, patch: data });
     res.json({ scene });

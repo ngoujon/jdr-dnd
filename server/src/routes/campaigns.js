@@ -114,7 +114,8 @@ campaignsRouter.get(
       include: {
         gm: true,
         members: { include: { user: { select: { id: true, username: true, avatarUrl: true, lastSeenAt: true } } } },
-        scenes: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, backgroundUrl: true, width: true, height: true } },
+        scenes: { orderBy: { order: 'asc' }, select: { id: true, name: true, order: true, backgroundUrl: true, width: true, height: true, folderId: true } },
+        sceneFolders: { orderBy: [{ order: 'asc' }, { createdAt: 'asc' }] },
         combat: true,
       },
     });
@@ -131,7 +132,9 @@ campaignsRouter.get(
           username: m.user.username,
           avatarUrl: m.user.avatarUrl,
         })),
-        scenes: visibleScenes,
+        // Le rangement en dossiers ne regarde que le MJ.
+        scenes: req.isGM ? visibleScenes : visibleScenes.map(({ folderId, ...s }) => s),
+        sceneFolders: req.isGM ? campaign.sceneFolders : [],
         combat: campaign.combat,
       },
     });

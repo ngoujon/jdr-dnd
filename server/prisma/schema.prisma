@@ -72,6 +72,7 @@ model Campaign {
   gm         User          @relation("CampaignGM", fields: [gmId], references: [id], onDelete: Cascade)
   members    Membership[]
   scenes     Scene[]
+  sceneFolders SceneFolder[]
   characters Character[]
   handouts   Handout[]
   messages   ChatMessage[]
@@ -125,8 +126,28 @@ model Scene {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  /// Dossier de rangement dans la liste du MJ (null = a la racine).
+  folderId String?
+
+  campaign Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  folder   SceneFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   tokens   Token[]
+
+  @@index([campaignId])
+  @@index([folderId])
+}
+
+/// Dossier pour ranger les scenes cote MJ. Supprimer un dossier remet ses
+/// scenes a la racine, sans les supprimer.
+model SceneFolder {
+  id         String   @id @default(cuid())
+  campaignId String
+  name       String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  scenes   Scene[]
 
   @@index([campaignId])
 }

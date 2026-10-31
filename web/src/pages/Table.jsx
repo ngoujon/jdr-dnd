@@ -7,7 +7,7 @@ import { ChatPanel } from '../components/ChatPanel.jsx';
 import { PartyPanel } from '../components/PartyPanel.jsx';
 import { CombatTracker } from '../components/CombatTracker.jsx';
 import { HandoutPanel } from '../components/HandoutPanel.jsx';
-import { SceneManager } from '../components/SceneManager.jsx';
+import { SceneManager, SceneSettings } from '../components/SceneManager.jsx';
 import { AssetLibrary } from '../components/AssetLibrary.jsx';
 import { TokenInspector } from '../components/TokenInspector.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
@@ -56,6 +56,8 @@ export function TablePage() {
   // Ouverte d'emblee : outils de preparation pour le MJ, fiche pour le joueur.
   const [leftOpen, setLeftOpen] = useState(true);
   const [leftTab, setLeftTab] = useState('scenes');
+  // Colonne des réglages de scène, à côté de la liste (MJ).
+  const [settingsOpen, setSettingsOpen] = useState(true);
   const [openCharacter, setOpenCharacter] = useState(null);
   const [sheetId, setSheetId] = useState(null);
   const [speakingAs, setSpeakingAs] = useState(null);
@@ -240,7 +242,34 @@ export function TablePage() {
               </>
             ) : null}
           </aside>
-        ) : sheetCharacter ? (
+        ) : null}
+
+        {isGM && leftOpen && leftTab === 'scenes' ? (
+          settingsOpen ? (
+            <aside className="settings-rail">
+              <button
+                type="button"
+                className="btn xs ghost rail-close"
+                onClick={() => setSettingsOpen(false)}
+                title="Masquer les réglages de la scène"
+              >
+                ‹
+              </button>
+              <SceneSettings />
+            </aside>
+          ) : (
+            <button
+              type="button"
+              className="settings-rail-open"
+              onClick={() => setSettingsOpen(true)}
+              title="Afficher les réglages de la scène"
+            >
+              Réglages
+            </button>
+          )
+        ) : null}
+
+        {isGM ? null : sheetCharacter ? (
           <aside className={`left-rail player-sheet-rail ${leftOpen ? 'open' : ''}`}>
             {leftOpen ? (
               <>

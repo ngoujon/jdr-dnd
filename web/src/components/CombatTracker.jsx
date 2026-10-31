@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTable } from '../lib/store.js';
 import { useToast } from './Ui.jsx';
 import { HpBar } from './PartyPanel.jsx';
@@ -18,6 +18,10 @@ export function CombatTracker() {
   const patchToken = useTable((s) => s.patchToken);
   const toast = useToast();
   const [manualName, setManualName] = useState('');
+  // Glisser-deposer : participant saisi et emplacement vise (avant / apres une ligne).
+  const [dragId, setDragId] = useState(null);
+  const [dropAt, setDropAt] = useState(null);
+  const editedFrom = useRef(null);
 
   const entries = combat?.entries || [];
   const sorted = entries;
@@ -67,6 +71,28 @@ export function CombatTracker() {
       ].sort((a, b) => b.initiative - a.initiative),
     );
     setManualName('');
+  };
+
+  /**
+   * Deplace un participant a la main. Le tour en cours reste sur le meme
+   * combattant : seul son rang change, pas la personne qui joue.
+   */
+  const moveEntry = (id, targetIndex) => {
+    const from = entries.findIndex((e) => e.id === id);
+    if (from === -1) return;
+    const list = [...entries];
+    const [moved] = list.splice(from, 1);
+    const to = targetIndex > from ? targetIndex - 1 : targetIndex;
+    if (to === from) return;
+    list.splice(to, 0, moved);
+    const currentId = entries[combat?.turnIndex ?? 0]?.id;
+    const turnIndex = Math.max(0, list.findIndex((e) => e.id === currentId));
+    update({ entries: list, turnIndex });
+  };
+
+  const endDrag = () => {
+    setDragId(null);
+    setDropAt(null);
   };
 
   const patchEntry = (id, patch) =>
@@ -164,13 +190,54 @@ export function CombatTracker() {
 
       <ol className="initiative-list gm">
         {sorted.map((entry, index) => (
-          <li key={entry.id} className={index === combat?.turnIndex ? 'current' : ''}>
+          <li
+            key={entry.id}
+            className={[
+              index === combat?.turnIndex ? 'current' : '',
+              dragId === entry.id ? 'dragging' : '',
+              dropAt === index ? 'drop-before' : '',
+              dropAt === index + 1 && index === sorted.length - 1 ? 'drop-after' : '',
+            ].join(' ')}
+            draggable
+            onDragStart={(e) => {
+              // Les champs et boutons de la ligne restent utilisables normalement.
+              if (['INPUT', 'BUTTON'].includes(e.target.tagName)) return;
+              e.dataTransfer.setData('text/plain', entry.id);
+              e.dataTransfer.effectAllowed = 'move';
+              setDragId(entry.id);
+            }}
+            onDragOver={(e) => {
+              if (!dragId) return;
+              e.preventDefault();
+              const box = e.currentTarget.getBoundingClientRect();
+              setDropAt(e.clientY < box.top + box.height / 2 ? index : index + 1);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragId && dropAt != null) moveEntry(dragId, dropAt);
+              endDrag();
+            }}
+            onDragEnd={endDrag}
+          >
+            <span className="drag-handle" aria-hidden="true" title="Glisser pour changer l'ordre">
+              ⠿
+            </span>
             <input
               className="input sm init-input"
               type="number"
               value={entry.initiative}
               onChange={(e) => patchEntry(entry.id, { initiative: Number(e.target.value) || 0 })}
-              onBlur={() => setEntries([...entries].sort((a, b) => b.initiative - a.initiative))}
+              onDragStart={(e) => e.preventDefault()}
+              onFocus={() => {
+                editedFrom.current = entry.initiative;
+              }}
+              // Re-trie seulement si le score a change : un simple clic ne casse pas l'ordre fait a la main.
+              onBlur={() => {
+                if (editedFrom.current !== entry.initiative) {
+                  setEntries([...entries].sort((a, b) => b.initiative - a.initiative));
+                }
+                editedFrom.current = null;
+              }}
               aria-label={`Initiative de ${entry.name}`}
             />
             <span className="col" style={{ flex: 1, minWidth: 0, gap: 3 }}>
@@ -186,18 +253,18 @@ export function CombatTracker() {
                   <button
                     type="button"
                     className="btn xs"
-                    title="−5 PV"
-                    onClick={() => applyEntryHp(entry, Math.max(0, (entry.hp ?? 0) - 5))}
+                    title="−1 PV"
+                    onClick={() => applyEntryHp(entry, Math.max(0, (entry.hp ?? 0) - 1))}
                   >
-                    −5
+                    −1
                   </button>
                   <button
                     type="button"
                     className="btn xs"
-                    title="+5 PV"
-                    onClick={() => applyEntryHp(entry, Math.min(entry.maxHp, (entry.hp ?? 0) + 5))}
+                    title="+1 PV"
+                    onClick={() => applyEntryHp(entry, Math.min(entry.maxHp, (entry.hp ?? 0) + 1))}
                   >
-                    +5
+                    +1
                   </button>
                 </>
               ) : null}

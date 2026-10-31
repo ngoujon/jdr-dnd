@@ -820,6 +820,13 @@
 }
 .init-input { width: 68px; flex: none; text-align: center; font-family: var(--font-mono); font-weight: 700; }
 .init-actions { gap: 3px; }
+.initiative-list.gm li { cursor: grab; position: relative; }
+.initiative-list.gm li.dragging { opacity: 0.45; }
+.initiative-list.gm li.drop-before { box-shadow: 0 -2px 0 var(--brass); }
+.initiative-list.gm li.drop-after { box-shadow: 0 2px 0 var(--brass); }
+.initiative-list.gm li.current.drop-before { box-shadow: inset 3px 0 0 var(--brass), 0 -2px 0 var(--brass); }
+.initiative-list.gm li.current.drop-after { box-shadow: inset 3px 0 0 var(--brass), 0 2px 0 var(--brass); }
+.drag-handle { color: var(--text-dim); font-size: 14px; line-height: 1; flex: none; user-select: none; }
 
 /* -------------------------------------------------------------- Scenes --- */
 
@@ -841,7 +848,68 @@
 }
 .scene-thumb { width: 44px; height: 30px; border-radius: 4px; background-size: cover; flex: none; border: 1px solid var(--line); }
 .scene-actions { display: flex; gap: 3px; padding: 0 8px 7px; }
-.scene-settings { padding: 10px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); }
+.scene-list li[draggable='true'] { cursor: grab; }
+.scene-settings { padding: 12px 12px 16px; display: flex; flex-direction: column; gap: 10px; height: 100%; }
+
+.scene-tree { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px; }
+.scene-tree .scene-list { padding: 0; }
+.scene-folder {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--ink-850);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.scene-folder > .scene-list { padding: 0 6px 6px 14px; }
+.scene-folder.drop, .scene-root.drop { border-color: var(--brass); background: var(--ink-800); }
+.scene-folder-head { display: flex; align-items: center; gap: 2px; padding: 3px 4px 3px 0; }
+.scene-folder-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.scene-folder-toggle .chevron { display: inline-block; width: 10px; color: var(--text-dim); transition: transform 0.15s ease; }
+.scene-folder-toggle .chevron.down { transform: rotate(90deg); }
+.scene-folder-toggle .count { margin-left: auto; font-size: 11px; }
+.scene-folder-toggle .count.current { color: var(--brass); font-weight: 700; }
+.scene-folder-empty { margin: 0; padding: 4px 10px 10px 30px; font-size: 12px; }
+.scene-root { border: 1px dashed transparent; border-radius: var(--radius-sm); min-height: 28px; display: flex; flex-direction: column; gap: 6px; }
+.scene-root-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 2px 0; }
+
+/* Colonne des reglages, collee a la liste des scenes. */
+.settings-rail {
+  width: 300px;
+  flex: none;
+  background: var(--ink-850);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+.settings-rail > .scene-settings { flex: 1; min-height: 0; }
+.settings-rail .rail-close { position: absolute; top: 8px; right: 8px; z-index: 2; }
+.settings-rail-open {
+  flex: none;
+  width: 26px;
+  background: var(--ink-850);
+  border: 0;
+  border-right: 1px solid var(--line);
+  color: var(--text-dim);
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 12px 0;
+}
+.settings-rail-open:hover { color: var(--text); background: var(--ink-800); }
 
 /* -------------------------------------------------------- Bibliotheque --- */
 
@@ -1345,6 +1413,7 @@
 @media (max-width: 860px) {
   .table-layout { flex-direction: column; }
   .left-rail, .left-rail.open { width: 100%; height: auto; max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .settings-rail { width: 100%; max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); }
   .right-rail { width: 100%; height: 45vh; border-left: 0; border-top: 1px solid var(--line); }
   .map-area { min-height: 46vh; }
   .ability-row { grid-template-columns: repeat(3, 1fr); }
