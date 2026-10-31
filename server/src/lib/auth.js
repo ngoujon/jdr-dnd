@@ -32,7 +32,12 @@ export const requireAuth = async (req, _res, next) => {
     req.user = user;
     next();
   } catch (err) {
-    next(err.status ? err : unauthorized('Session expirée ou invalide'));
+    if (err.status) return next(err);
+    // Seul un jeton illisible ou expire vaut deconnexion. Une base pas encore
+    // prete (redemarrage, deploiement) renvoyait aussi 401, et le navigateur
+    // effacait alors la session de tous les joueurs connectes.
+    const badToken = ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(err.name);
+    next(badToken ? unauthorized('Session expirée ou invalide') : err);
   }
 };
 

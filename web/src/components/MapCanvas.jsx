@@ -7,6 +7,8 @@ const MIN_SCALE = 0.12;
 const MAX_SCALE = 4;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const uid = () => Math.random().toString(36).slice(2, 10);
+/** Tailles de creature proposees par l'inspecteur de pion, en cases (voir SIZES). */
+const TOKEN_SIZE_FACTORS = [0.5, 1, 2, 3, 4];
 
 /**
  * Plateau de jeu : panoramique, zoom, pions deplacables, brouillard de guerre,
@@ -415,10 +417,18 @@ export function MapCanvas({
     const speed = token.speed ?? character?.speed;
     if (!speed) return null;
     const distance = feetToSceneUnits(speed, scene?.unitLabel);
+    // La portee se mesure en cases de 5 ft (1,5 m), et une case = la largeur
+    // d'un pion de taille Moyenne. Le cercle suit donc la taille du pion, pas
+    // l'echelle de la carte : d'une petite a une grande carte, la meme vitesse
+    // donne toujours le meme cercle autour du pion.
+    const ratio = Math.min(token.width, token.height) / scalePx;
+    const preset = TOKEN_SIZE_FACTORS.find((factor) => Math.abs(ratio - factor) < 0.05);
+    // Pion redimensionne a la main : on le considere comme une creature Moyenne.
+    const squarePx = Math.min(token.width, token.height) / (preset ?? 1);
     return {
       cx: token.x + token.width / 2,
       cy: token.y + token.height / 2,
-      radius: (distance / (scene?.scaleUnits || 1.5)) * scalePx,
+      radius: (speed / 5) * squarePx,
       label: `${Math.round(distance * 10) / 10} ${scene?.unitLabel || 'm'}`,
     };
   }, [selection, tokens, isGM, isTokenOwned, characters, scene, scalePx]);

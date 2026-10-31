@@ -105,10 +105,12 @@ export function WhisperDock() {
     }
   }, [messages, correspondentOf, me]);
 
-  // Le popup charge l'historique de la conversation, comme une fenêtre ouverte à la main.
+  // Toute conversation affichée (popup ou fenêtre ouverte d'elle-même à l'arrivée
+  // d'un message) charge son historique : sinon elle affichait « Aucun message ».
   useEffect(() => {
-    if (popupId && !threads[popupId]?.history && !threads[popupId]?.loading) {
-      openThread(popupId, { focus: false });
+    for (const [userId, thread] of Object.entries(threads)) {
+      const shown = userId === popupId || !thread.minimized;
+      if (shown && !thread.history && !thread.loading) openThread(userId, { focus: false });
     }
   }, [popupId, threads, openThread]);
 
