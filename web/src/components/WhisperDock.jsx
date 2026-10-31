@@ -22,6 +22,11 @@ export function WhisperDock() {
   // { [userId]: { minimized, unread, history, loading } }
   const [threads, setThreads] = useState({});
   const seenRef = useRef(new Set());
+  // Conversation affichée en popup au centre de l'écran (message privé reçu).
+  const [popupId, setPopupId] = useState(null);
+  // Seuls les messages arrivés après l'ouverture de la table déclenchent le
+  // popup : l'historique chargé à l'ouverture ne doit pas en faire surgir.
+  const mountedAtRef = useRef(Date.now());
 
   const membersById = useMemo(() => {
     const map = new Map();
@@ -80,6 +85,8 @@ export function WhisperDock() {
       const other = correspondentOf(message);
       if (!other) continue;
       const mine = message.userId === me?.id;
+      const fresh = new Date(message.createdAt).getTime() >= mountedAtRef.current - 5000;
+      if (!mine && fresh) setPopupId(other);
       setThreads((current) => {
         const thread = current[other];
         return {
@@ -98,43 +105,71 @@ export function WhisperDock() {
     }
   }, [messages, correspondentOf, me]);
 
-  const close = (userId) =>
+  // Le popup charge l'historique de la conversation, comme une fenêtre ouverte à la main.
+  useEffect(() => {
+    if (popupId && !threads[popupId]?.history && !threads[popupId]?.loading) {
+      openThread(popupId, { focus: false });
+    }
+  }, [popupId, threads, openThread]);
+
+  const close = (userId) => {
+    if (popupId === userId) setPopupId(null);
     setThreads((current) => {
       const { [userId]: _removed, ...rest } = current;
       return rest;
     });
+  };
+
+  const minimize = (userId) => {
+    if (popupId === userId) setPopupId(null);
+    setThreads((current) => ({
+      ...current,
+      [userId]: { ...current[userId], minimized: true },
+    }));
+  };
+
+  // Échap range le popup dans la barre du bas.
+  useEffect(() => {
+    if (!popupId) return undefined;
+    const onKey = (e) => e.key === 'Escape' && minimize(popupId);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const entries = Object.entries(threads);
   if (!entries.length) return null;
 
-  const open = entries.filter(([, thread]) => !thread.minimized);
-  const minimized = entries.filter(([, thread]) => thread.minimized);
+  const popupThread = popupId ? threads[popupId] : null;
+  const open = entries.filter(([userId, thread]) => !thread.minimized && userId !== popupId);
+  const minimized = entries.filter(([userId, thread]) => thread.minimized && userId !== popupId);
+
+  const windowProps = (userId, thread) => ({
+    member: membersById.get(userId),
+    thread,
+    me,
+    onMinimize: () => minimize(userId),
+    onClose: () => close(userId),
+    onRead: () =>
+      thread.unread &&
+      setThreads((current) => ({
+        ...current,
+        [userId]: { ...current[userId], unread: 0 },
+      })),
+    onSend: (text) => sendChat(`/w ${membersById.get(userId)?.username || ''} ${text}`),
+  });
 
   return (
     <>
+      {popupThread ? (
+        // Un clic à côté range la conversation dans la barre du bas, sans la perdre.
+        <div className="whisper-popup-backdrop" onMouseDown={(e) => e.target === e.currentTarget && minimize(popupId)}>
+          <WhisperWindow key={popupId} popup {...windowProps(popupId, popupThread)} />
+        </div>
+      ) : null}
+
       <div className="whisper-windows">
         {open.map(([userId, thread]) => (
-          <WhisperWindow
-            key={userId}
-            member={membersById.get(userId)}
-            thread={thread}
-            me={me}
-            onMinimize={() =>
-              setThreads((current) => ({
-                ...current,
-                [userId]: { ...current[userId], minimized: true },
-              }))
-            }
-            onClose={() => close(userId)}
-            onRead={() =>
-              thread.unread &&
-              setThreads((current) => ({
-                ...current,
-                [userId]: { ...current[userId], unread: 0 },
-              }))
-            }
-            onSend={(text) => sendChat(`/w ${membersById.get(userId)?.username || ''} ${text}`)}
-          />
+          <WhisperWindow key={userId} {...windowProps(userId, thread)} />
         ))}
       </div>
 
@@ -162,9 +197,15 @@ export function WhisperDock() {
   );
 }
 
-function WhisperWindow({ member, thread, me, onMinimize, onClose, onRead, onSend }) {
+function WhisperWindow({ member, thread, me, popup = false, onMinimize, onClose, onRead, onSend }) {
   const [text, setText] = useState('');
   const bodyRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // En popup, le curseur est déjà dans le champ : on peut répondre tout de suite.
+  useEffect(() => {
+    if (popup) inputRef.current?.focus({ preventScroll: true });
+  }, [popup]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -181,7 +222,10 @@ function WhisperWindow({ member, thread, me, onMinimize, onClose, onRead, onSend
   return (
     // Cliquer ou écrire dans la fenêtre vaut lecture : le clignotement cesse.
     <section
-      className={`whisper-window ${thread.unread ? 'has-unread' : ''}`}
+      className={`whisper-window ${popup ? 'popup' : ''} ${thread.unread ? 'has-unread' : ''}`}
+      role={popup ? 'dialog' : undefined}
+      aria-modal={popup ? 'true' : undefined}
+      aria-label={`Message privé de ${member?.username || 'un joueur'}`}
       onMouseDown={onRead}
       onFocusCapture={onRead}
     >
@@ -218,6 +262,7 @@ function WhisperWindow({ member, thread, me, onMinimize, onClose, onRead, onSend
 
       <form className="whisper-foot" onSubmit={submit}>
         <input
+          ref={inputRef}
           className="input sm"
           value={text}
           onChange={(e) => setText(e.target.value)}

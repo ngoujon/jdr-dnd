@@ -1601,6 +1601,20 @@
   gap: 10px;
   pointer-events: none;
 }
+/* Message privé reçu : la conversation s'ouvre au milieu de l'écran. */
+.whisper-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 6, 10, 0.55);
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.12s ease-out;
+}
+.whisper-window.popup { width: 460px; height: 520px; max-height: 80vh; }
 .whisper-window {
   pointer-events: auto;
   width: 380px;
