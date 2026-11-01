@@ -192,3 +192,13 @@ export function feetToSceneUnits(feet, unitLabel = 'm') {
   if (/^(km|kilom)/.test(label)) return feet * 0.0003;
   return feet * 0.3;
 }
+
+/**
+ * La vitesse est stockée en pieds (règles D&D, cercle de portée), mais la VF
+ * l'écrit en mètres : 30 pieds = 9 m. Les fiches l'affichent et la saisissent
+ * donc en mètres, convertis ici (5 pieds = 1,5 m).
+ */
+export const speedToMeters = (feet) => (feet == null ? null : Math.round(feet * 0.3 * 10) / 10);
+export const metersToSpeed = (meters) => Math.max(0, Math.round(Number(meters) / 1.5) * 5) || 0;
+/** 9 → « 9 », 7,5 → « 7,5 ». */
+export const formatMeters = (feet) => String(speedToMeters(feet) ?? '').replace('.', ',');

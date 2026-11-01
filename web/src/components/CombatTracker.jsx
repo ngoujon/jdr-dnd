@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTable } from '../lib/store.js';
 import { useToast } from './Ui.jsx';
 import { HpBar } from './PartyPanel.jsx';
@@ -21,7 +21,7 @@ export function CombatTracker() {
   // Glisser-deposer : participant saisi et emplacement vise (avant / apres une ligne).
   const [dragId, setDragId] = useState(null);
   const [dropAt, setDropAt] = useState(null);
-  const editedFrom = useRef(null);
+  const [editing, setEditing] = useState(null);
 
   const entries = combat?.entries || [];
   const sorted = entries;
@@ -29,6 +29,26 @@ export function CombatTracker() {
   const update = (patch) => saveCombat(patch).catch((e) => toast(e.message, 'error'));
 
   const setEntries = (list) => update({ entries: list });
+
+  /**
+   * Place des nouveaux venus selon leur initiative sans retrier les autres :
+   * l'ordre réglé à la main par le MJ reste tel quel.
+   */
+  const insertByInitiative = (list, additions) => {
+    const result = [...list];
+    for (const entry of [...additions].sort((a, b) => b.initiative - a.initiative)) {
+      const at = result.findIndex((e) => e.initiative < entry.initiative);
+      result.splice(at === -1 ? result.length : at, 0, entry);
+    }
+    return result;
+  };
+
+  /** Le tour en cours reste sur le même combattant quand la liste change. */
+  const keepTurn = (list) => {
+    const currentId = entries[combat?.turnIndex ?? 0]?.id;
+    const index = list.findIndex((e) => e.id === currentId);
+    return index === -1 ? {} : { turnIndex: index };
+  };
 
   const addFromTokens = () => {
     const existing = new Set(entries.map((e) => e.tokenId).filter(Boolean));
@@ -52,24 +72,23 @@ export function CombatTracker() {
         };
       });
     if (!additions.length) return toast('Tous les pions sont déjà dans l’ordre du combat', 'info');
-    setEntries([...entries, ...additions].sort((a, b) => b.initiative - a.initiative));
+    const list = insertByInitiative(entries, additions);
+    update({ entries: list, ...keepTurn(list) });
   };
 
   const addManual = () => {
     if (!manualName.trim()) return;
-    setEntries(
-      [
-        ...entries,
-        {
-          id: uid(),
-          name: manualName.trim(),
-          initiative: Math.floor(Math.random() * 20) + 1,
-          isNpc: true,
-          visible: true,
-          conditions: [],
-        },
-      ].sort((a, b) => b.initiative - a.initiative),
-    );
+    const list = insertByInitiative(entries, [
+      {
+        id: uid(),
+        name: manualName.trim(),
+        initiative: Math.floor(Math.random() * 20) + 1,
+        isNpc: true,
+        visible: true,
+        conditions: [],
+      },
+    ]);
+    update({ entries: list, ...keepTurn(list) });
     setManualName('');
   };
 
@@ -225,18 +244,20 @@ export function CombatTracker() {
             <input
               className="input sm init-input"
               type="number"
-              value={entry.initiative}
-              onChange={(e) => patchEntry(entry.id, { initiative: Number(e.target.value) || 0 })}
+              // Saisie locale : rien ne part au serveur avant la fin de la frappe.
+              value={editing?.id === entry.id ? editing.value : entry.initiative}
+              onChange={(e) => setEditing({ id: entry.id, value: e.target.value })}
               onDragStart={(e) => e.preventDefault()}
-              onFocus={() => {
-                editedFrom.current = entry.initiative;
-              }}
-              // Re-trie seulement si le score a change : un simple clic ne casse pas l'ordre fait a la main.
+              onFocus={() => setEditing({ id: entry.id, value: String(entry.initiative) })}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              // Un score modifié replace ce seul participant ; les autres gardent l'ordre fait à la main.
               onBlur={() => {
-                if (editedFrom.current !== entry.initiative) {
-                  setEntries([...entries].sort((a, b) => b.initiative - a.initiative));
-                }
-                editedFrom.current = null;
+                const value = Number(editing?.value);
+                setEditing(null);
+                if (editing?.id !== entry.id || !Number.isFinite(value) || value === entry.initiative) return;
+                const others = entries.filter((e) => e.id !== entry.id);
+                const list = insertByInitiative(others, [{ ...entry, initiative: value }]);
+                update({ entries: list, ...keepTurn(list) });
               }}
               aria-label={`Initiative de ${entry.name}`}
             />

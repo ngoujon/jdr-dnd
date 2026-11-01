@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { ABILITIES, SKILLS, modifier, signed } from '../lib/dnd.js';
+import { ABILITIES, SKILLS, modifier, signed, formatMeters } from '../lib/dnd.js';
 
 /**
  * Rendu caché à l'écran, affiché uniquement par `@media print` (voir app.css).
@@ -65,7 +65,7 @@ export function CharacterPrintSheet({ character, derived, prof, profs }) {
           </div>
           <div className="ps-field">
             <span className="ps-label">Vitesse</span>
-            <span className="ps-value">{character.speed}</span>
+            <span className="ps-value">{formatMeters(character.speed)} m</span>
           </div>
         </div>
 

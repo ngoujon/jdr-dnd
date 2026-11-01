@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTable } from '../lib/store.js';
-import { CONDITIONS } from '../lib/dnd.js';
+import { CONDITIONS, speedToMeters, metersToSpeed } from '../lib/dnd.js';
 import { Modal, LazyInput, useToast } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 
@@ -177,17 +177,19 @@ export function TokenInspector({ tokenId, onClose }) {
           />
         </div>
         <div className="field">
-          <label title="Distance parcourue en un tour, en pieds. Sert au cercle de portée affiché sur la carte. Vide : vitesse du personnage lié.">
-            Vitesse (pieds)
+          <label title="Distance parcourue en un tour, en mètres. Sert au cercle de portée affiché sur la carte. Vide : vitesse du personnage lié.">
+            Vitesse (m)
           </label>
           <LazyInput
             className="input sm"
             type="number"
             min="0"
-            step="5"
-            value={token.speed ?? ''}
-            placeholder={character?.speed != null ? String(character.speed) : '30'}
-            onCommit={(v) => set({ speed: v === '' ? null : Math.max(0, Math.round(Number(v)) || 0) })}
+            step="1.5"
+            value={speedToMeters(token.speed) ?? ''}
+            placeholder={character?.speed != null ? String(speedToMeters(character.speed)) : '9'}
+            onCommit={(v) =>
+              set({ speed: v === '' ? null : metersToSpeed(String(v).replace(',', '.')) })
+            }
           />
         </div>
         <div className="field">

@@ -2,6 +2,37 @@ import { create } from 'zustand';
 import { api, setToken, getToken } from './api.js';
 import { getSocket, resetSocket, emitAck } from './socket.js';
 
+/**
+ * File d'envoi du combat (voir saveCombat) : une requête à la fois, et seule la
+ * réponse de la dernière met l'écran à jour.
+ */
+const combatSync = { chain: Promise.resolve(), pending: 0 };
+
+function queueCombat(get, set, request) {
+  combatSync.pending += 1;
+  const run = combatSync.chain.then(request);
+  combatSync.chain = run.catch(() => {});
+  return run
+    .then(({ combat }) => {
+      combatSync.pending -= 1;
+      if (!combatSync.pending) set({ combat });
+      return combat;
+    })
+    .catch(async (err) => {
+      combatSync.pending -= 1;
+      // Envoi refusé : on reprend l'état réel du serveur plutôt qu'un écran faux.
+      if (!combatSync.pending) {
+        try {
+          const { combat } = await api.get(`/campaigns/${get().campaignId}/combat`);
+          set({ combat });
+        } catch {
+          /* hors ligne : l'écran sera resynchronisé au prochain événement */
+        }
+      }
+      throw err;
+    });
+}
+
 /* ---------------------------------------------------------------- Auth --- */
 
 export const useAuth = create((set) => ({
@@ -247,7 +278,11 @@ export const useTable = create((set, get) => ({
       set((state) => ({ handouts: state.handouts.filter((h) => h.id !== handoutId) })),
     );
 
-    on('combat:updated', ({ combat }) => set({ combat }));
+    // Pendant que le MJ enregistre, l'écho d'un envoi plus ancien ne doit pas
+    // écraser ce qu'il vient de faire.
+    on('combat:updated', ({ combat }) => {
+      if (!combatSync.pending) set({ combat });
+    });
     on('asset:created', ({ assets }) =>
       // Le televerseur recharge deja la liste : on evite les doublons.
       set((state) => ({
@@ -522,17 +557,22 @@ export const useTable = create((set, get) => ({
     set((state) => ({ characters: state.characters.filter((c) => c.id !== characterId) }));
   },
 
+  /**
+   * Les changements du combat partent un par un, dans l'ordre où le MJ les fait.
+   * Envoyés en parallèle, deux enregistrements rapprochés (glisser puis −1 PV,
+   * ou chaque chiffre tapé dans l'initiative) pouvaient être traités dans le
+   * désordre : l'écran montrait le bon ordre, mais la base gardait un ancien, qui
+   * revenait à l'actualisation de la page.
+   */
   async saveCombat(patch) {
     const { campaignId } = get();
-    const { combat } = await api.put(`/campaigns/${campaignId}/combat`, patch);
-    set({ combat });
-    return combat;
+    set((state) => ({ combat: { ...(state.combat || {}), ...patch } }));
+    return queueCombat(get, set, () => api.put(`/campaigns/${campaignId}/combat`, patch));
   },
 
   async nextTurn(direction = 'next') {
     const { campaignId } = get();
-    const { combat } = await api.post(`/campaigns/${campaignId}/combat/${direction}`);
-    set({ combat });
+    return queueCombat(get, set, () => api.post(`/campaigns/${campaignId}/combat/${direction}`));
   },
 
   async refreshAssets() {

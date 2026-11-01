@@ -66,9 +66,34 @@ async function alignTokenHpWithCharacters() {
   if (aligned) console.log(`[post-push] PV de ${aligned} pion(s) alignes sur leur fiche`);
 }
 
+/**
+ * Vitesses saisies en mètres converties en pieds.
+ *
+ * La vitesse est stockée en pieds (30 = 9 m), mais la fiche ne le disait pas :
+ * un joueur qui tapait « 9 » obtenait un cercle de 2,7 m. Une vitesse D&D en
+ * pieds est toujours un multiple de 5 ; une valeur qui ne l'est pas (6, 9, 12,
+ * 18…) a donc été tapée en mètres. Rejouable : après conversion, la valeur est
+ * un multiple de 5 et n'est plus touchée.
+ */
+async function convertMeterSpeeds() {
+  const toFeet = (meters) => Math.round(meters / 1.5) * 5;
+  let converted = 0;
+  for (const model of ['character', 'token']) {
+    // Character.speed est obligatoire, Token.speed facultatif : on filtre ici.
+    const rows = await prisma[model].findMany({ select: { id: true, speed: true } });
+    for (const row of rows) {
+      if (row.speed == null || row.speed % 5 === 0 || row.speed > 60) continue;
+      await prisma[model].update({ where: { id: row.id }, data: { speed: toFeet(row.speed) } });
+      converted += 1;
+    }
+  }
+  if (converted) console.log(`[post-push] ${converted} vitesse(s) saisie(s) en metres converties en pieds`);
+}
+
 try {
   await renameDetailsNotes();
   await alignTokenHpWithCharacters();
+  await convertMeterSpeeds();
 } catch (error) {
   console.error('[post-push] avertissement :', error.message);
 } finally {

@@ -3,6 +3,7 @@ import { useTable, useAuth } from '../lib/store.js';
 import {
   ABILITIES, SKILLS, CLASSES, RACES, BACKGROUNDS, ALIGNMENTS, DAMAGE_TYPES,
   TEMPLATES, SPELL_ABILITY_BY_CLASS, SUBRACES, modifier, proficiencyBonus, signed, levelFromXp,
+  speedToMeters, metersToSpeed, formatMeters,
 } from '../lib/dnd.js';
 import { api } from '../lib/api.js';
 import { Modal, LazyInput, Spinner, InfoTip, FieldLabel, useToast, useConfirm } from './Ui.jsx';
@@ -359,12 +360,14 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
               <strong className="big mono">{signed(derived.initiative ?? 0)}</strong>
             </button>
             <div className="vital-box">
-              <span className="label">Vitesse<InfoTip help={"Distance parcourue en un tour, en pieds. Le cercle affiche sur la carte quand le pion est selectionne en decoule."} example={"30 pour un humain, 25 pour un nain"} /></span>
+              <span className="label">Vitesse (m)<InfoTip help={"Distance parcourue en un tour, en mètres. Le cercle affiché sur la carte quand le pion est sélectionné en découle."} example={"9 m pour un humain, 7,5 m pour un nain"} /></span>
               <LazyInput
                 className="input center big"
                 type="number"
-                value={character.speed}
-                onCommit={(v) => save({ speed: Number(v) || 0 })}
+                step="1.5"
+                min="0"
+                value={speedToMeters(character.speed) ?? ''}
+                onCommit={(v) => save({ speed: metersToSpeed(String(v).replace(',', '.')) })}
                 disabled={!editable}
               />
             </div>
@@ -620,7 +623,7 @@ function LightSheet({
           </button>
           <div>
             <span className="label">Vitesse</span>
-            <strong className="mono">{character.speed}</strong>
+            <strong className="mono">{formatMeters(character.speed)} m</strong>
           </div>
           <div title="Perception passive">
             <span className="label">Perc. p.</span>
