@@ -5,6 +5,9 @@ import { verifyToken } from '../lib/auth.js';
 import { rollDice, parseRollCommand } from '../lib/dice.js';
 import { setIo, roomCampaign, roomGM, roomUser, emitToCampaign, emitToGMs, emitToUser } from './hub.js';
 
+/** Emojis de réaction autorisés : même liste que REACTIONS dans web/src/pages/Table.jsx. */
+const REACTION_EMOJIS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
+
 /** Presence en memoire : campaignId -> Map(userId -> { user, sockets:Set }) */
 const presence = new Map();
 
@@ -133,6 +136,37 @@ export const attachRealtime = (httpServer) => {
       if (!campaignId || !socket.data.campaigns.has(campaignId)) return;
       const result = { x, y, sceneId, userId: user.id, username: user.username, focus: Boolean(focus) && socket.data.isGM };
       io.to(roomCampaign(campaignId)).emit('map:ping', result);
+    });
+
+    /** Réaction emoji éphémère au-dessus de ses pions (rien n'est écrit en base). */
+    let lastReaction = 0;
+    socket.on('token:react', async (payload) => {
+      try {
+        const { campaignId, tokenIds, emoji } = payload || {};
+        if (!campaignId || !socket.data.campaigns.has(campaignId)) return;
+        if (!REACTION_EMOJIS.includes(emoji) || !Array.isArray(tokenIds) || !tokenIds.length) return;
+        const now = Date.now();
+        if (now - lastReaction < 300) return;
+        lastReaction = now;
+        const access = await membershipOf(campaignId, user.id);
+        if (!access) return;
+        const tokens = await prisma.token.findMany({
+          where: { id: { in: tokenIds.slice(0, 30).map(String) }, scene: { campaignId } },
+          select: { id: true, ownerId: true, characterId: true, character: { select: { ownerId: true } } },
+        });
+        // Un joueur ne fait réagir que ses propres pions ; le MJ, ceux qu'il veut.
+        const allowed = access.isGM
+          ? tokens
+          : tokens.filter((t) => t.ownerId === user.id || t.character?.ownerId === user.id);
+        if (!allowed.length) return;
+        io.to(roomCampaign(campaignId)).emit('token:reaction', {
+          tokenIds: allowed.map((t) => t.id),
+          emoji,
+          userId: user.id,
+        });
+      } catch {
+        /* réaction perdue : sans conséquence */
+      }
     });
 
     socket.on('chat:send', async (payload, ack) => {

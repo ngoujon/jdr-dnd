@@ -28,6 +28,7 @@ export function MapCanvas({
   const characters = useTable((s) => s.characters);
   const ghosts = useTable((s) => s.ghosts);
   const pings = useTable((s) => s.pings);
+  const reactions = useTable((s) => s.reactions);
   const isGM = useTable((s) => s.isGM);
   const me = useAuth((s) => s.user);
   const moveTokens = useTable((s) => s.moveTokens);
@@ -630,6 +631,24 @@ export function MapCanvas({
             </text>
           </svg>
         ) : null}
+
+        {reactions.map((r) => {
+          const token = tokens.find((t) => t.id === r.tokenId);
+          if (!token) return null;
+          if (!isGM && !isTokenOwned(token) && isTokenFogged(token)) return null;
+          const ghost = localDrag[token.id] || ghosts[token.id];
+          const x = (ghost?.x ?? token.x) + (token.width || scalePx) / 2;
+          const y = ghost?.y ?? token.y;
+          return (
+            <span
+              key={r.id}
+              className="map-reaction"
+              style={{ left: x, top: y, fontSize: Math.max((token.width || scalePx) * 0.55, 26 / view.k) }}
+            >
+              {r.emoji}
+            </span>
+          );
+        })}
 
         {pings.map((p) => (
           <span key={p.id} className="map-ping" style={{ left: p.x, top: p.y }}>

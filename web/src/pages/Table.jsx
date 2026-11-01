@@ -28,7 +28,10 @@ const GM_TOOLS = [
   { key: 'fog-hide', icon: '☁', label: 'Masquer', hint: 'Remettre du brouillard sur une zone' },
 ];
 
-const BRUSH_COLORS = ['#e0a75c', '#d0574c', '#57a866', '#4a6fbd', '#b4a3f0', '#ede0c8'];
+/** Même liste que REACTION_EMOJIS dans server/src/realtime/index.js. */
+const REACTIONS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
+
+const BRUSH_COLORS =['#e0a75c', '#d0574c', '#57a866', '#4a6fbd', '#b4a3f0', '#ede0c8'];
 
 export function TablePage() {
   const { campaignId } = useParams();
@@ -46,11 +49,13 @@ export function TablePage() {
   const deleteToken = useTable((s) => s.deleteToken);
   const updateDrawings = useTable((s) => s.updateDrawings);
   const duplicateTokens = useTable((s) => s.duplicateTokens);
+  const react = useTable((s) => s.react);
   const me = useAuth((s) => s.user);
   const toast = useToast();
 
   const [tool, setTool] = useState('select');
   const [brush, setBrush] = useState({ color: '#e0a75c', width: 4, shape: 'pen', gmOnly: false });
+  const [reactionsOpen, setReactionsOpen] = useState(false);
   const [selection, setSelection] = useState([]);
   const [rightTab, setRightTab] = useState('chat');
   // Ouverte d'emblee : outils de preparation pour le MJ, fiche pour le joueur.
@@ -94,19 +99,45 @@ export function TablePage() {
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selection.length) {
         e.preventDefault();
-        for (const id of selection) deleteToken(id).catch(() => {});
+        // Un joueur ne retire que ses propres pions, jamais ceux des autres.
+        for (const id of selection) {
+          const token = tokens.find((t) => t.id === id);
+          if (token && canEditToken(token)) deleteToken(id).catch((err) => toast(err.message, 'error'));
+        }
         setSelection([]);
       }
       if (e.key === 'Escape') setSelection([]);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selection, deleteToken, duplicateTokens, isGM]);
+  });
 
   const myCharacters = useMemo(
     () => characters.filter((c) => c.ownerId === me?.id && !c.isNpc),
     [characters, me],
   );
+
+  /** Miroir de assertCanEdit (serveur) : le MJ tout, un joueur ses propres pions. */
+  function canEditToken(token) {
+    if (isGM) return true;
+    if (token.locked) return false;
+    if (token.ownerId === me?.id) return true;
+    return characters.some((c) => c.id === token.characterId && c.ownerId === me?.id);
+  }
+
+  /** Pions qui affichent la réaction : la sélection du MJ, sinon mes personnages. */
+  const sendReaction = (emoji) => {
+    const mine = tokens.filter(
+      (t) => t.ownerId === me?.id || characters.some((c) => c.id === t.characterId && c.ownerId === me?.id),
+    );
+    const selected = tokens.filter((t) => selection.includes(t.id) && (isGM || mine.includes(t)));
+    const targets = selected.length ? selected : mine;
+    if (!targets.length) {
+      toast(isGM ? 'Sélectionnez un pion sur la carte' : "Posez d'abord votre pion sur la carte", 'info');
+      return;
+    }
+    react(emoji, targets.map((t) => t.id));
+  };
   const sheetCharacter = myCharacters.find((c) => c.id === sheetId) || myCharacters[0] || null;
 
   /** Le MJ ouvre la fiche complete ; le joueur affiche la sienne dans sa barre. */
@@ -305,18 +336,32 @@ export function TablePage() {
 
         <section className="map-area" onDragOver={(e) => e.preventDefault()} onDrop={onDropAsset}>
           <div className="map-toolbar">
-            {[...TOOLS, ...(isGM ? GM_TOOLS : [])].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`tool-btn ${tool === item.key ? 'active' : ''}`}
-                onClick={() => setTool(item.key)}
-                title={`${item.label} — ${item.hint}`}
-              >
-                <span aria-hidden="true">{item.icon}</span>
-                <em>{item.label}</em>
-              </button>
-            ))}
+            {[...TOOLS, 'reactions', ...(isGM ? GM_TOOLS : [])].map((item) =>
+              item === 'reactions' ? (
+                <button
+                  key="reactions"
+                  type="button"
+                  className={`tool-btn ${reactionsOpen ? 'active' : ''}`}
+                  onClick={() => setReactionsOpen((v) => !v)}
+                  title="Réaction — Afficher un emoji au-dessus de vos pions"
+                  aria-expanded={reactionsOpen}
+                >
+                  <span aria-hidden="true">😀</span>
+                  <em>Réaction</em>
+                </button>
+              ) : (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`tool-btn ${tool === item.key ? 'active' : ''}`}
+                  onClick={() => setTool(item.key)}
+                  title={`${item.label} — ${item.hint}`}
+                >
+                  <span aria-hidden="true">{item.icon}</span>
+                  <em>{item.label}</em>
+                </button>
+              ),
+            )}
 
             <span className="spacer" />
 
@@ -359,6 +404,25 @@ export function TablePage() {
               </div>
             ) : null}
           </div>
+
+          {reactionsOpen ? (
+            <div className="brush-bar reaction-bar" role="toolbar" aria-label="Réactions">
+              {REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="reaction-emoji"
+                  onClick={() => sendReaction(emoji)}
+                  title={isGM ? 'Sur les pions sélectionnés' : 'Sur mes pions'}
+                >
+                  {emoji}
+                </button>
+              ))}
+              <button type="button" className="btn xs ghost" onClick={() => setReactionsOpen(false)} title="Fermer">
+                ✕
+              </button>
+            </div>
+          ) : null}
 
           {tool === 'draw' ? (
             <div className="brush-bar">

@@ -324,7 +324,7 @@ export function TokenInspector({ tokenId, onClose }) {
         type="button"
         className="btn danger block"
         onClick={() => {
-          deleteToken(token.id);
+          deleteToken(token.id).catch(() => {});
           onClose();
         }}
       >

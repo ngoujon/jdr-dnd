@@ -80,6 +80,7 @@ const initialTable = {
   combat: null,
   online: [],
   pings: [],
+  reactions: [],
   loading: true,
   error: null,
   /** Positions transitoires pendant qu'un autre joueur deplace un pion. */
@@ -260,6 +261,17 @@ export const useTable = create((set, get) => ({
       setTimeout(() => set((state) => ({ pings: state.pings.filter((p) => p.id !== id) })), 2600);
     });
 
+    on('token:reaction', ({ tokenIds, emoji }) => {
+      const stamp = `${Date.now()}-${Math.random()}`;
+      const added = tokenIds.map((tokenId) => ({ id: `${tokenId}-${stamp}`, tokenId, emoji }));
+      const ids = new Set(added.map((r) => r.id));
+      // Une nouvelle réaction remplace la précédente sur le même pion.
+      set((state) => ({
+        reactions: [...state.reactions.filter((r) => !tokenIds.includes(r.tokenId)), ...added],
+      }));
+      setTimeout(() => set((state) => ({ reactions: state.reactions.filter((r) => !ids.has(r.id)) })), 3000);
+    });
+
     on('campaign:member-joined', () => get().refreshCampaign());
     on('campaign:member-left', () => get().refreshCampaign());
     on('campaign:member-updated', () => get().refreshCampaign());
@@ -401,8 +413,15 @@ export const useTable = create((set, get) => ({
 
   async deleteToken(tokenId) {
     const { campaignId } = get();
+    const previous = get().tokens.find((t) => t.id === tokenId);
     set((state) => ({ tokens: state.tokens.filter((t) => t.id !== tokenId) }));
-    await api.del(`/campaigns/${campaignId}/tokens/${tokenId}`);
+    try {
+      await api.del(`/campaigns/${campaignId}/tokens/${tokenId}`);
+    } catch (err) {
+      // Refusé (pion d'un autre, verrouillé) : il réapparaît.
+      if (previous) set((state) => ({ tokens: [...state.tokens.filter((t) => t.id !== tokenId), previous] }));
+      throw err;
+    }
   },
 
   /* --- Actions scene ---------------------------------------------------- */
@@ -468,6 +487,10 @@ export const useTable = create((set, get) => ({
   ping(x, y, focus = false) {
     const { campaignId, scene } = get();
     getSocket().emit('map:ping', { campaignId, x, y, sceneId: scene?.id, focus });
+  },
+
+  react(emoji, tokenIds) {
+    getSocket().emit('token:react', { campaignId: get().campaignId, tokenIds, emoji });
   },
 
   dragToken(tokenId, x, y) {
