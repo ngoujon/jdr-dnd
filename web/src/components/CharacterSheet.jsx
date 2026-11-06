@@ -42,6 +42,8 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
   const scene = useTable((s) => s.scene);
   const roll = useTable((s) => s.roll);
   const isGM = useTable((s) => s.isGM);
+  // Pour un joueur, un seul pion par personnage : le bouton le ramene au centre.
+  const placed = useTable((s) => s.tokens.some((t) => t.characterId === initial?.id));
   const me = useAuth((s) => s.user);
   const toast = useToast();
   const [confirm, confirmNode] = useConfirm();
@@ -151,7 +153,7 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
         maxHp: character.maxHp,
         ac: character.ac,
       });
-      toast(`${character.name} est posé sur la carte`, 'success');
+      toast(placed ? `${character.name} est ramené au centre de la carte` : `${character.name} est posé sur la carte`, 'success');
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -383,7 +385,7 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
               Fiche réduite
             </button>
             <button type="button" className="btn sm primary" onClick={dropOnMap}>
-              Poser sur la carte
+              {placed && !isGM ? 'Repositionner' : 'Poser sur la carte'}
             </button>
             <button type="button" className="btn sm" onClick={() => window.print()}>
               Exporter en PDF

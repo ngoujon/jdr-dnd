@@ -367,12 +367,15 @@ export function TablePage() {
 
             {myCharacters.length ? (
               <div className="quick-drop">
-                <span className="faint">Poser :</span>
-                {myCharacters.map((character) => (
+                {myCharacters.map((character) => {
+                  // Un seul pion par personnage : deja pose, le bouton le ramene au centre.
+                  const placed = tokens.some((t) => t.characterId === character.id);
+                  return (
                   <button
                     key={character.id}
                     type="button"
                     className="btn xs"
+                    title={placed ? 'Ramener mon pion au centre de la carte' : 'Poser mon pion au centre de la carte'}
                     onClick={async () => {
                       if (!scene) return toast('Aucune scène active', 'error');
                       const scalePx = scene.scalePx || 70;
@@ -398,9 +401,10 @@ export function TablePage() {
                       }
                     }}
                   >
-                    {character.name}
+                    {placed ? 'Repositionner' : 'Poser'} {character.name}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </div>

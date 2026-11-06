@@ -89,6 +89,20 @@ tokensRouter.post(
       data.ownerId = req.user.id;
       data.layer = 'TOKEN';
       data.visible = true;
+      // Un seul pion par personnage et par scene : s'il est deja pose, on le
+      // ramene a l'endroit demande (« Repositionner ») au lieu d'en creer un autre.
+      const existing = await prisma.token.findFirst({
+        where: { sceneId: scene.id, characterId: data.characterId },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (existing) {
+        const moved = await prisma.token.update({
+          where: { id: existing.id },
+          data: { x: data.x ?? existing.x, y: data.y ?? existing.y },
+        });
+        await broadcastToken(req.campaign, 'token:updated', moved);
+        return res.json({ token: await tokenFor(req, moved), repositioned: true });
+      }
     }
     // Un pion de personnage part avec les PV de sa fiche : sa barre est juste d'emblee.
     if (data.characterId) {
