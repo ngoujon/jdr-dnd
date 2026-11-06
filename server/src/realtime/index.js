@@ -3,8 +3,9 @@ import { prisma } from '../lib/db.js';
 import { env } from '../lib/env.js';
 import { verifyToken } from '../lib/auth.js';
 import { rollDice, parseRollCommand } from '../lib/dice.js';
-import { setIo, roomCampaign, roomGM, roomUser, emitToCampaign, emitToGMs, emitToUser } from './hub.js';
+import { setIo, getIo, roomCampaign, roomGM, roomUser, emitToCampaign, emitToGMs, emitToUser } from './hub.js';
 import { attachVoice } from './voice.js';
+import { attachSound, playCritSound } from './sound.js';
 
 /** Emojis de réaction autorisés : même liste que REACTIONS dans web/src/pages/Table.jsx. */
 const REACTION_EMOJIS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
@@ -65,6 +66,7 @@ const dispatchMessage = (campaignId, message, { isGM }) => {
   } else {
     emitToCampaign(campaignId, 'chat:message', { message });
   }
+  if (message.type === 'ROLL') playCritSound(getIo(), campaignId, message).catch(() => {});
 };
 
 export const attachRealtime = (httpServer) => {
@@ -97,6 +99,7 @@ export const attachRealtime = (httpServer) => {
     const user = socket.data.user;
     socket.data.campaigns = new Set();
     attachVoice(io, socket);
+    attachSound(io, socket);
 
     socket.on('campaign:join', async (campaignId, ack) => {
       try {

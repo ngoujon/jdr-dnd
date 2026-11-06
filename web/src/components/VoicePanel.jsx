@@ -11,6 +11,7 @@ import {
   VOICE_SILENT_METERS,
 } from '../lib/voice.js';
 import { useToast } from './Ui.jsx';
+import { ListenerVolumes } from './SoundPanel.jsx';
 
 const ROOMS = [
   { key: '1', label: 'Salon 1' },
@@ -130,6 +131,8 @@ export function VoicePanel() {
           </button>
         </div>
       ) : null}
+
+      <ListenerVolumes />
 
       <p className="faint voice-help">
         Le son dépend de la distance entre les pions : plein volume jusqu'à {VOICE_FULL_METERS} m, plus rien

@@ -67,6 +67,9 @@ model Campaign {
   joinCode      String   @unique
   gmId          String
   activeSceneId String?
+  /// Sons joues a toute la table sur un 20 naturel / un 1 naturel au d20
+  critSuccessSoundUrl String?
+  critFailSoundUrl    String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

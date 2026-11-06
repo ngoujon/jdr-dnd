@@ -1045,6 +1045,40 @@
 
 .handout-panel { padding: 10px 0; }
 
+/* ------------------------------------------------------------ Son --- */
+
+.sound-panel { padding: 10px 0; display: flex; flex-direction: column; gap: 12px; }
+.sound-block { display: flex; flex-direction: column; gap: 8px; padding: 0 10px; }
+.sound-title { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+.sound-hint { margin: 0; font-size: 12px; }
+.sound-now { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--brass); border-radius: var(--radius-sm); background: rgba(192, 135, 63, 0.12); font-size: 12.5px; }
+.sound-eq { color: var(--brass-bright); animation: sound-pulse 1.2s ease-in-out infinite; }
+@keyframes sound-pulse { 50% { opacity: 0.35; } }
+.sound-slider { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+.sound-slider input { flex: 1; accent-color: var(--brass); min-width: 60px; }
+.sound-slider.compact { flex: 1; }
+.sound-drop { padding: 10px; }
+.sound-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sound-list li { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--ink-850); }
+.sound-list li.playing { border-color: var(--brass); }
+.sound-name { font-size: 12.5px; }
+.sound-actions { gap: 4px; flex-wrap: wrap; }
+.sound-unlock {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 50;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  background: var(--ink-800);
+  color: var(--brass-bright);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
 /* ------------------------------------------------------- Chat vocal --- */
 
 .voice-panel { padding: 10px 0; display: flex; flex-direction: column; gap: 10px; }

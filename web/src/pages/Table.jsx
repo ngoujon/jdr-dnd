@@ -13,6 +13,8 @@ import { TokenInspector } from '../components/TokenInspector.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
 import { WhisperDock } from '../components/WhisperDock.jsx';
 import { VoicePanel } from '../components/VoicePanel.jsx';
+import { SoundPanel, SoundUnlock } from '../components/SoundPanel.jsx';
+import { listenSound } from '../lib/sound.js';
 import { Tabs, Spinner, useToast, Avatar } from '../components/Ui.jsx';
 import { IconPanelOpen } from '../components/Icons.jsx';
 
@@ -83,6 +85,11 @@ export function TablePage() {
     open(campaignId);
     return () => reset();
   }, [campaignId, open, reset]);
+
+  // Musique et effets du MJ : chacun les entend, MJ compris.
+  useEffect(() => {
+    if (!loading && campaign) listenSound(campaignId);
+  }, [campaignId, loading, Boolean(campaign)]);
 
   /** Raccourcis clavier façon logiciels de dessin. */
   useEffect(() => {
@@ -572,6 +579,7 @@ export function TablePage() {
               { key: 'combat', label: 'Combat' },
               { key: 'handouts', label: 'Docs' },
               { key: 'voice', label: 'Com.' },
+              ...(isGM ? [{ key: 'sound', label: 'Son' }] : []),
             ]}
           />
           <div className="rail-body">
@@ -595,6 +603,7 @@ export function TablePage() {
             {rightTab === 'combat' ? <CombatTracker /> : null}
             {rightTab === 'handouts' ? <HandoutPanel /> : null}
             {rightTab === 'voice' ? <VoicePanel /> : null}
+            {rightTab === 'sound' && isGM ? <SoundPanel /> : null}
           </div>
         </aside>
       </div>
@@ -604,6 +613,7 @@ export function TablePage() {
       ) : null}
 
       <WhisperDock />
+      <SoundUnlock />
     </div>
   );
 }
