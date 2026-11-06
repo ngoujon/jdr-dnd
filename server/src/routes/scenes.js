@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody, notFound, forbidden } from '../lib/http.js';
 import { requireAuth, requireCampaignMember, requireGM } from '../lib/auth.js';
-import { emitToCampaign, emitToGMs } from '../realtime/hub.js';
+import { emitToCampaign, emitToGMs, getIo } from '../realtime/hub.js';
+import { fireSoundTrigger } from '../realtime/sound.js';
 import { playerControlledIds, sanitizeTokenForPlayer } from '../lib/tokens.js';
 
 export const scenesRouter = Router({ mergeParams: true });
@@ -107,6 +108,11 @@ scenesRouter.patch(
       patch: { ...data, notes: undefined, folderId: undefined },
     });
     emitToGMs(req.campaign.id, 'scene:updated-gm', { sceneId: scene.id, patch: data });
+    // « Tout révéler » et autres zones devoilees : son du declencheur « carte devoilee ».
+    const reveals = (list) => (Array.isArray(list) ? list.filter((r) => r?.mode === 'reveal').length : 0);
+    if (data.fogReveals && reveals(data.fogReveals) > reveals(existing.fogReveals)) {
+      fireSoundTrigger(getIo(), req.campaign.id, 'FOG_REVEAL').catch(() => {});
+    }
     res.json({ scene });
   }),
 );

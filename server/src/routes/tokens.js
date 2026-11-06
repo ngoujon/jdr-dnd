@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody, notFound, forbidden } from '../lib/http.js';
 import { requireAuth, requireCampaignMember } from '../lib/auth.js';
-import { emitToCampaign } from '../realtime/hub.js';
+import { emitToCampaign, getIo } from '../realtime/hub.js';
+import { fireSoundTrigger } from '../realtime/sound.js';
 import { playerControlledIds, sanitizeTokenForPlayer } from '../lib/tokens.js';
 import {
   applyHpDelta,
@@ -44,6 +45,23 @@ const tokenSchema = z.object({
   lightRadius: z.number().min(0).max(500).optional(),
   isGmPawn: z.boolean().optional(),
 });
+
+/**
+ * Declencheur sonore « apparition d'un ennemi » : un pion qui n'est ni un
+ * personnage joueur ni le pion du MJ devient visible sur la scene en jeu.
+ */
+const announceEnemy = async (req, token) => {
+  try {
+    if (token.isGmPawn || token.layer !== 'TOKEN' || token.sceneId !== req.campaign.activeSceneId) return;
+    if (token.characterId) {
+      const character = await prisma.character.findUnique({ where: { id: token.characterId }, select: { isNpc: true } });
+      if (character && !character.isNpc) return;
+    }
+    await fireSoundTrigger(getIo(), req.campaign.id, 'ENEMY_APPEARS');
+  } catch {
+    /* son perdu : sans consequence */
+  }
+};
 
 /** Un joueur ne peut manipuler que les pions qu'il possede (ou lies a son perso). */
 const assertCanEdit = async (req, token) => {
@@ -152,6 +170,7 @@ tokensRouter.post(
       data: { ...data, zIndex: data.zIndex ?? (maxZ._max.zIndex ?? 0) + 1 },
     });
     await broadcastToken(req.campaign, 'token:created', token);
+    if (req.isGM && token.visible) announceEnemy(req, token);
     res.status(201).json({ token: await tokenFor(req, token) });
   }),
 );
@@ -177,6 +196,8 @@ tokensRouter.patch(
     const token = await prisma.token.update({ where: { id: existing.id }, data });
     const becameHidden = existing.visible && !token.visible;
     if (becameHidden) emitToCampaign(req.campaign.id, 'token:removed', { tokenId: token.id });
+    // Le MJ devoile un pion cache : un ennemi apparait.
+    if (!existing.visible && token.visible) announceEnemy(req, token);
     await broadcastToken(req.campaign, 'token:updated', token);
     // Pion lie a une fiche (ou fraichement lie) : la fiche et ses autres pions suivent.
     if (token.characterId) {

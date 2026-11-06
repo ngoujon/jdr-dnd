@@ -4,7 +4,8 @@ import { customAlphabet } from 'nanoid';
 import { prisma } from '../lib/db.js';
 import { asyncHandler, parseBody, notFound, forbidden, conflict, badRequest } from '../lib/http.js';
 import { requireAuth, requireCampaignMember, requireGM } from '../lib/auth.js';
-import { emitToCampaign } from '../realtime/hub.js';
+import { emitToCampaign, getIo } from '../realtime/hub.js';
+import { fireSoundTrigger } from '../realtime/sound.js';
 
 export const campaignsRouter = Router();
 campaignsRouter.use(requireAuth);
@@ -164,6 +165,10 @@ campaignsRouter.patch(
     const campaign = await prisma.campaign.update({ where: { id: req.params.campaignId }, data });
     if (data.activeSceneId !== undefined) {
       emitToCampaign(campaign.id, 'campaign:scene-changed', { sceneId: campaign.activeSceneId });
+      // Musique liee a cette scene : elle demarre d'elle-meme.
+      if (campaign.activeSceneId && campaign.activeSceneId !== req.campaign?.activeSceneId) {
+        fireSoundTrigger(getIo(), campaign.id, 'SCENE', { sceneId: campaign.activeSceneId }).catch(() => {});
+      }
     }
     emitToCampaign(campaign.id, 'campaign:updated', { campaign: campaignSummary(campaign, req.user.id) });
     res.json({ campaign: campaignSummary(campaign, req.user.id) });

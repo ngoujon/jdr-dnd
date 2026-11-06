@@ -371,6 +371,13 @@ model Folder {
   name       String
   order      Int         @default(0)
   createdAt  DateTime    @default(now())
+  /// Dossiers de sons : evenement qui joue automatiquement un son du dossier
+  /// (CRIT_SUCCESS, CRIT_FAIL, ENEMY_APPEARS, FOG_REVEAL, SCENE ; null = manuel)
+  trigger        String?
+  /// Scene visee quand trigger = SCENE
+  triggerSceneId String?
+  /// "music" (en boucle, remplace la musique) ou "sfx" (joue une fois)
+  triggerMode    String?
 
   owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)

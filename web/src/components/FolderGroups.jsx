@@ -52,6 +52,8 @@ export function FolderGroups({
   title = null,
   actions = null,
   canManage = true,
+  /** Contenu optionnel ajoute dans l'en-tete de chaque dossier (ex. declencheur d'un dossier de sons). */
+  renderFolderExtra = null,
 }) {
   const toast = useToast();
   const [confirm, confirmNode] = useConfirm();
@@ -178,6 +180,7 @@ export function FolderGroups({
                   <strong className="ellipsis">{folder.name}</strong>
                   <span className="faint count">{inside.length}</span>
                 </button>
+                {renderFolderExtra ? renderFolderExtra(folder) : null}
                 {canManage ? (
                   <>
                     <button

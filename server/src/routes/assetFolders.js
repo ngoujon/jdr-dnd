@@ -15,6 +15,9 @@ assetFoldersRouter.use(requireAuth);
 
 const SCOPES = ['TOKEN', 'MAP', 'AUDIO'];
 
+/** Evenements qui peuvent jouer un son d'un dossier (voir realtime/sound.js). */
+export const SOUND_TRIGGERS = ['CRIT_SUCCESS', 'CRIT_FAIL', 'ENEMY_APPEARS', 'FOG_REVEAL', 'SCENE'];
+
 const folderSchema = z.object({
   name: z.string().trim().min(1).max(60),
   order: z.number().int().min(0).max(999).optional(),
@@ -103,8 +106,22 @@ assetFoldersRouter.put(
 assetFoldersRouter.patch(
   '/:folderId',
   asyncHandler(async (req, res) => {
-    const data = parseBody(folderSchema.partial(), req.body);
-    await findFolder(req);
+    const data = parseBody(
+      folderSchema.partial().extend({
+        trigger: z.enum(SOUND_TRIGGERS).nullable().optional(),
+        triggerSceneId: z.string().max(40).nullable().optional(),
+        triggerMode: z.enum(['music', 'sfx']).nullable().optional(),
+      }),
+      req.body,
+    );
+    const existing = await findFolder(req);
+    // Les declencheurs ne concernent que les dossiers de sons.
+    if (existing.scope !== 'AUDIO') {
+      delete data.trigger;
+      delete data.triggerSceneId;
+      delete data.triggerMode;
+    }
+    if (data.trigger !== undefined && data.trigger !== 'SCENE') data.triggerSceneId = null;
     const folder = await prisma.folder.update({ where: { id: req.params.folderId }, data });
     res.json({ folder, ...(await broadcast(req.user.id)) });
   }),

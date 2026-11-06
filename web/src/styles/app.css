@@ -1063,6 +1063,23 @@
 .sound-list li { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--ink-850); }
 .sound-list li.playing { border-color: var(--brass); }
 .sound-list li[draggable='true'] { cursor: grab; }
+.trigger-chip {
+  flex: none;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.trigger-chip:hover { color: var(--text); border-color: var(--brass-dim); }
+.trigger-chip.on { border-style: solid; border-color: var(--brass); background: rgba(192, 135, 63, 0.14); color: var(--brass-bright); }
+.hint-text { margin: 4px 0 0; font-size: 12px; }
 .sound-block .folder-groups-bar { padding: 0; }
 .sound-block .scene-tree { padding: 0; }
 .scene-folder > .folder-body > .sound-list { padding: 0 6px 6px 14px; }

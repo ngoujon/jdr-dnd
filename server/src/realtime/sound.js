@@ -15,7 +15,11 @@ const music = new Map();
 
 /** Seuls des fichiers du site sont acceptes (pas d'adresse externe imposee aux joueurs). */
 const cleanUrl = (url) => (typeof url === 'string' && /^\/[^/]/.test(url) && url.length <= 500 ? url : null);
-const cleanVolume = (volume) => Math.max(0, Math.min(1, Number.isFinite(Number(volume)) ? Number(volume) : 0.6));
+/** Volume « table » par defaut (100 %) : il se multiplie par le reglage de
+ *  chaque auditeur, lui-meme a 50 % par defaut (web/src/lib/sound.js). */
+const DEFAULT_VOLUME = 1;
+const cleanVolume = (volume) =>
+  Math.max(0, Math.min(1, volume != null && Number.isFinite(Number(volume)) ? Number(volume) : DEFAULT_VOLUME));
 const cleanName = (name) => String(name || '').slice(0, 80);
 
 export const attachSound = (io, socket) => {
@@ -82,25 +86,62 @@ export const attachSound = (io, socket) => {
   });
 };
 
+/* --- Declencheurs automatiques ------------------------------------------- */
+
+/** Mode par defaut : une scene lance une musique, les autres evenements un effet. */
+const defaultMode = (trigger) => (trigger === 'SCENE' ? 'music' : 'sfx');
+
 /**
- * Joue le son de critique apres un jet. Un jet secret ne s'entend que chez
- * ceux qui le voient : le son ne doit pas trahir un 20 cache par le MJ.
+ * Joue un son d'un dossier du MJ dont le declencheur correspond a l'evenement
+ * (tire au hasard dans le dossier, pour varier). `userIds` limite l'audience
+ * (jet secret) ; sinon toute la table entend. Renvoie vrai si un son est parti.
+ */
+export const fireSoundTrigger = async (io, campaignId, trigger, { sceneId = null, userIds = null } = {}) => {
+  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, select: { gmId: true } }).catch(() => null);
+  if (!campaign) return false;
+  const folders = await prisma.folder
+    .findMany({
+      where: { ownerId: campaign.gmId, scope: 'AUDIO', trigger, ...(trigger === 'SCENE' ? { triggerSceneId: sceneId } : {}) },
+      include: { assets: { include: { asset: { select: { url: true, name: true, kind: true } } } } },
+    })
+    .catch(() => []);
+  const candidates = folders.flatMap((folder) =>
+    folder.assets
+      .filter((entry) => entry.asset?.kind === 'AUDIO')
+      .map((entry) => ({ ...entry.asset, mode: folder.triggerMode || defaultMode(trigger) })),
+  );
+  if (!candidates.length) return false;
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  if (pick.mode === 'music' && !userIds) {
+    music.set(campaignId, { url: pick.url, name: cleanName(pick.name), volume: DEFAULT_VOLUME, startedAt: Date.now() });
+    io.to(roomCampaign(campaignId)).emit('sound:music', { music: music.get(campaignId), serverNow: Date.now() });
+  } else {
+    const payload = { url: pick.url, name: cleanName(pick.name), volume: DEFAULT_VOLUME };
+    if (userIds) for (const id of new Set(userIds)) io.to(roomUser(id)).emit('sound:sfx', payload);
+    else io.to(roomCampaign(campaignId)).emit('sound:sfx', payload);
+  }
+  return true;
+};
+
+/**
+ * Son des jets critiques. Un jet secret ne s'entend que chez ceux qui le
+ * voient : le son ne doit pas trahir un 20 cache par le MJ.
  */
 export const playCritSound = async (io, campaignId, message) => {
   const roll = message?.rollData;
   if (!roll || (!roll.crit && !roll.fumble)) return;
-  // Avantage et desavantage peuvent donner les deux : le de garde decide.
+  // Avantage et desavantage peuvent donner les deux : la reussite l'emporte.
   const success = roll.crit;
+  const userIds = message.whisperTo ? [message.whisperTo, message.userId].filter(Boolean) : null;
+  if (await fireSoundTrigger(io, campaignId, success ? 'CRIT_SUCCESS' : 'CRIT_FAIL', { userIds })) return;
+
+  // Ancien reglage (un son choisi par campagne), garde tant qu'il est rempli.
   const campaign = await prisma.campaign
     .findUnique({ where: { id: campaignId }, select: { critSuccessSoundUrl: true, critFailSoundUrl: true } })
     .catch(() => null);
   const url = success ? campaign?.critSuccessSoundUrl : campaign?.critFailSoundUrl;
   if (!url) return;
-  const payload = { url, name: success ? 'Réussite critique' : 'Échec critique', volume: 0.9 };
-  if (message.whisperTo) {
-    io.to(roomUser(message.whisperTo)).emit('sound:sfx', payload);
-    if (message.userId && message.userId !== message.whisperTo) io.to(roomUser(message.userId)).emit('sound:sfx', payload);
-  } else {
-    io.to(roomCampaign(campaignId)).emit('sound:sfx', payload);
-  }
+  const payload = { url, name: success ? 'Réussite critique' : 'Échec critique', volume: DEFAULT_VOLUME };
+  if (userIds) for (const id of new Set(userIds)) io.to(roomUser(id)).emit('sound:sfx', payload);
+  else io.to(roomCampaign(campaignId)).emit('sound:sfx', payload);
 };

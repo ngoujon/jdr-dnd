@@ -5,7 +5,7 @@ import { verifyToken } from '../lib/auth.js';
 import { rollDice, parseRollCommand } from '../lib/dice.js';
 import { setIo, getIo, roomCampaign, roomGM, roomUser, emitToCampaign, emitToGMs, emitToUser } from './hub.js';
 import { attachVoice } from './voice.js';
-import { attachSound, playCritSound } from './sound.js';
+import { attachSound, playCritSound, fireSoundTrigger } from './sound.js';
 
 /** Emojis de réaction autorisés : même liste que REACTIONS dans web/src/pages/Table.jsx. */
 const REACTION_EMOJIS = [
@@ -271,11 +271,17 @@ export const attachRealtime = (httpServer) => {
         const access = await membershipOf(campaignId, user.id);
         if (!access?.isGM) return ack?.({ error: 'Action réservée au MJ' });
         if (!Array.isArray(reveals) || reveals.length > 5000) return ack?.({ error: 'Données invalides' });
+        const before = await prisma.scene.findUnique({ where: { id: sceneId }, select: { fogReveals: true } });
+        const revealCount = (list) => (Array.isArray(list) ? list.filter((r) => r?.mode === 'reveal').length : 0);
         const scene = await prisma.scene.update({
           where: { id: sceneId },
           data: { fogReveals: reveals },
         });
         emitToCampaign(campaignId, 'fog:updated', { sceneId: scene.id, reveals: scene.fogReveals });
+        // Une zone de la carte se devoile : son du declencheur « carte devoilee ».
+        if (revealCount(reveals) > revealCount(before?.fogReveals)) {
+          fireSoundTrigger(io, campaignId, 'FOG_REVEAL').catch(() => {});
+        }
         ack?.({ ok: true });
       } catch (err) {
         ack?.({ error: err.message });

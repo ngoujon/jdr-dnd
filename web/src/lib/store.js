@@ -664,6 +664,12 @@ export const useTable = create((set, get) => ({
     set({ assetFolders: { folders, entries } });
   },
 
+  /** Reglages d'un dossier de sons : declencheur automatique, scene, mode. */
+  async updateAssetFolder(folderId, patch) {
+    const { folders, entries } = await api.patch(`/asset-folders/${folderId}`, patch);
+    set({ assetFolders: { folders, entries } });
+  },
+
   async deleteAssetFolder(folderId) {
     const { folders, entries } = await api.del(`/asset-folders/${folderId}`);
     set({ assetFolders: { folders, entries } });

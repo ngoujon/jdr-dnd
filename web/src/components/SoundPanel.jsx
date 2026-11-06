@@ -7,16 +7,33 @@ import {
   gmStopMusic,
   gmMusicVolume,
   gmPlaySfx,
-  gmSetCritSounds,
   previewSound,
   unlockSound,
   setMusicVolume,
   setSfxVolume,
 } from '../lib/sound.js';
-import { FileDrop, useToast } from './Ui.jsx';
+import { FileDrop, Modal, useToast } from './Ui.jsx';
 import { FolderGroups } from './FolderGroups.jsx';
 
 const AUDIO_ACCEPT = 'audio/mpeg,audio/ogg,audio/wav';
+
+/** Declencheurs possibles d'un dossier de sons (meme liste que SOUND_TRIGGERS cote serveur). */
+const TRIGGERS = [
+  { key: '', label: 'Aucun : je lance les sons moi-même', help: 'Les sons du dossier ne partent que quand vous cliquez dessus.' },
+  { key: 'CRIT_SUCCESS', label: '🎯 Réussite critique (20 naturel)', help: "Joué quand un d20 fait 20. Un jet secret ne s'entend que chez ceux qui le voient." },
+  { key: 'CRIT_FAIL', label: '💀 Échec critique (1 naturel)', help: "Joué quand un d20 fait 1. Un jet secret ne s'entend que chez ceux qui le voient." },
+  { key: 'ENEMY_APPEARS', label: "👹 Apparition d'un ennemi", help: 'Joué quand vous posez ou rendez visible un pion qui n’est pas un personnage joueur, sur la scène en jeu.' },
+  { key: 'FOG_REVEAL', label: '🗺️ La carte se dévoile', help: 'Joué quand vous révélez une zone du brouillard de guerre.' },
+  { key: 'SCENE', label: '🎬 Une scène est affichée', help: 'Joué quand vous diffusez cette scène aux joueurs. Idéal pour lancer la musique du lieu.' },
+];
+
+const triggerLabel = (folder, scenes) => {
+  if (folder.trigger === 'SCENE') {
+    const scene = scenes.find((s) => s.id === folder.triggerSceneId);
+    return `🎬 ${scene ? scene.name : 'Scène supprimée'}`;
+  }
+  return TRIGGERS.find((t) => t.key === folder.trigger)?.label.split(' (')[0] || '⚡ Déclencheur';
+};
 const SOUND_DRAG = 'application/x-sound';
 
 /** Onglet « Son » du MJ : musique d'ambiance, effets, sons des jets critiques. */
@@ -24,11 +41,14 @@ export function SoundPanel() {
   const campaignId = useTable((s) => s.campaignId);
   const assets = useTable((s) => s.assets);
   const refreshAssets = useTable((s) => s.refreshAssets);
-  const { music, critSuccessUrl, critFailUrl } = useSound();
+  const { music } = useSound();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState('');
-  const [sfxVolume, setGmSfxVolume] = useState(0.9);
+  const [sfxVolume, setGmSfxVolume] = useState(1);
+  const scenes = useTable((s) => s.scenes);
+  const updateAssetFolder = useTable((s) => s.updateAssetFolder);
+  const [triggerFor, setTriggerFor] = useState(null);
 
   const sounds = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -76,7 +96,6 @@ export function SoundPanel() {
     }
   };
 
-  const saveCrit = (patch) => gmSetCritSounds(campaignId, patch).catch((err) => toast(err.message, 'error'));
 
   return (
     <div className="sound-panel scroll">
@@ -136,15 +155,120 @@ export function SoundPanel() {
           itemLabel="son(s)"
           emptyHint="Glissez un son ici."
           renderList={renderSounds}
+          renderFolderExtra={(folder) => (
+            <button
+              type="button"
+              className={`trigger-chip ${folder.trigger ? 'on' : ''}`}
+              onClick={() =>
+                setTriggerFor({
+                  id: folder.id,
+                  name: folder.name,
+                  trigger: folder.trigger || '',
+                  sceneId: folder.triggerSceneId || '',
+                  mode: folder.triggerMode || '',
+                })
+              }
+              title="Choisir quand ce dossier se joue tout seul"
+            >
+              {folder.trigger ? triggerLabel(folder, scenes) : '⚡ Déclencheur'}
+            </button>
+          )}
         />
         {!sounds.length ? <p className="faint sound-hint">Ajoutez des fichiers audio pour les jouer à la table.</p> : null}
       </section>
 
-      {renderCrit()}
+      <p className="faint sound-hint" style={{ padding: '0 10px' }}>
+        ⚡ Un dossier peut se jouer tout seul : réussite ou échec critique, ennemi qui apparaît, carte qui se dévoile,
+        scène affichée. Sans déclencheur, c'est vous qui lancez ses sons.
+      </p>
 
       <ListenerVolumes />
+
+      <Modal
+        open={Boolean(triggerFor)}
+        title={`Déclencheur — ${triggerFor?.name || ''}`}
+        onClose={() => setTriggerFor(null)}
+        size="sm"
+        footer={
+          <>
+            <button type="button" className="btn ghost" onClick={() => setTriggerFor(null)}>
+              Annuler
+            </button>
+            <button type="button" className="btn primary" onClick={saveTrigger}>
+              Enregistrer
+            </button>
+          </>
+        }
+      >
+        {triggerFor ? (
+          <div className="col" style={{ gap: 12 }}>
+            <div className="field">
+              <label>Quand jouer ce dossier ?</label>
+              <select
+                className="select"
+                value={triggerFor.trigger}
+                onChange={(e) => setTriggerFor({ ...triggerFor, trigger: e.target.value })}
+              >
+                {TRIGGERS.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <p className="faint hint-text">{TRIGGERS.find((t) => t.key === triggerFor.trigger)?.help}</p>
+            </div>
+            {triggerFor.trigger === 'SCENE' ? (
+              <div className="field">
+                <label>Quelle scène ?</label>
+                <select
+                  className="select"
+                  value={triggerFor.sceneId}
+                  onChange={(e) => setTriggerFor({ ...triggerFor, sceneId: e.target.value })}
+                >
+                  <option value="">Choisir une scène…</option>
+                  {scenes.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            {triggerFor.trigger ? (
+              <div className="field">
+                <label>Comment le jouer ?</label>
+                <select
+                  className="select"
+                  value={triggerFor.mode || (triggerFor.trigger === 'SCENE' ? 'music' : 'sfx')}
+                  onChange={(e) => setTriggerFor({ ...triggerFor, mode: e.target.value })}
+                >
+                  <option value="music">Musique en boucle (remplace la musique en cours)</option>
+                  <option value="sfx">Effet joué une fois</option>
+                </select>
+                <p className="faint hint-text">S'il y a plusieurs sons dans le dossier, l'un d'eux est tiré au hasard.</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
+
+  async function saveTrigger() {
+    const t = triggerFor;
+    if (t.trigger === 'SCENE' && !t.sceneId) return toast('Choisissez la scène qui lance ce dossier', 'error');
+    try {
+      await updateAssetFolder(t.id, {
+        trigger: t.trigger || null,
+        triggerSceneId: t.trigger === 'SCENE' ? t.sceneId : null,
+        triggerMode: t.trigger ? t.mode || (t.trigger === 'SCENE' ? 'music' : 'sfx') : null,
+      });
+      setTriggerFor(null);
+      toast(t.trigger ? 'Déclencheur enregistré' : 'Dossier en lecture manuelle', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
 
   function renderSounds(list) {
     if (!list.length) return null;
@@ -195,45 +319,6 @@ export function SoundPanel() {
     );
   }
 
-  function renderCrit() {
-    return (
-      <section className="sound-block">
-        <h5 className="sound-title">Jets critiques</h5>
-        <p className="faint sound-hint">Joué chez tout le monde sur un 20 ou un 1 naturel au d20. Un jet secret ne s'entend que chez ceux qui le voient.</p>
-        {[
-          { key: 'critSuccessUrl', label: 'Réussite critique (20)', value: critSuccessUrl },
-          { key: 'critFailUrl', label: 'Échec critique (1)', value: critFailUrl },
-        ].map((item) => (
-          <div key={item.key} className="field">
-            <label>{item.label}</label>
-            <div className="row" style={{ gap: 6 }}>
-              <select
-                className="input sm"
-                value={item.value || ''}
-                onChange={(e) => saveCrit({ [item.key]: e.target.value || null })}
-              >
-                <option value="">Aucun son</option>
-                {allSounds.map((a) => (
-                  <option key={a.id} value={a.url}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="btn xs ghost"
-                disabled={!item.value}
-                title="Écouter seul"
-                onClick={() => previewSound(item.value)}
-              >
-                🎧
-              </button>
-            </div>
-          </div>
-        ))}
-      </section>
-    );
-  }
 }
 
 /** Reglages personnels : chacun regle la musique et les effets chez lui. */

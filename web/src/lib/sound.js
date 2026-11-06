@@ -32,8 +32,10 @@ export const useSound = create(() => ({
   /** Le navigateur attend un clic avant de jouer du son. */
   blocked: false,
   /** Reglages personnels de chaque auditeur (0..1). */
-  musicVolume: readVolume('sound:music-volume', 0.8),
-  sfxVolume: readVolume('sound:sfx-volume', 0.9),
+  // 50 % par defaut pour tout le monde : les premiers essais du MJ ne doivent
+  // pas casser les oreilles. Chacun remonte ensuite son volume s'il veut.
+  musicVolume: readVolume('sound:music-volume', 0.5),
+  sfxVolume: readVolume('sound:sfx-volume', 0.5),
   critSuccessUrl: null,
   critFailUrl: null,
 }));
@@ -49,7 +51,7 @@ const blockedIfRefused = (promise) =>
 
 const musicLevel = () => {
   const { music, musicVolume } = useSound.getState();
-  return Math.max(0, Math.min(1, (music?.volume ?? 0.6) * musicVolume));
+  return Math.max(0, Math.min(1, (music?.volume ?? 1) * musicVolume));
 };
 
 const stopMusic = () => {
@@ -82,7 +84,7 @@ const startMusic = (music, serverNow) => {
 
 const playSfx = ({ url, volume }) => {
   const el = new Audio(url);
-  el.volume = Math.max(0, Math.min(1, (volume ?? 0.9) * useSound.getState().sfxVolume));
+  el.volume = Math.max(0, Math.min(1, (volume ?? 1) * useSound.getState().sfxVolume));
   blockedIfRefused(el.play());
 };
 
@@ -134,14 +136,14 @@ export const setSfxVolume = (value) => {
 
 /* --- Commandes du MJ ------------------------------------------------------- */
 
-export const gmPlayMusic = (campaignId, asset, volume = 0.6) =>
+export const gmPlayMusic = (campaignId, asset, volume = 1) =>
   getSocket().emit('sound:music', { campaignId, url: asset.url, name: asset.name, volume });
 
 export const gmStopMusic = (campaignId) => getSocket().emit('sound:music', { campaignId, url: null });
 
 export const gmMusicVolume = (campaignId, volume) => getSocket().emit('sound:music-volume', { campaignId, volume });
 
-export const gmPlaySfx = (campaignId, asset, volume = 0.9) =>
+export const gmPlaySfx = (campaignId, asset, volume = 1) =>
   getSocket().emit('sound:sfx', { campaignId, url: asset.url, name: asset.name, volume });
 
 export const gmSetCritSounds = (campaignId, patch) =>
@@ -154,4 +156,4 @@ export const gmSetCritSounds = (campaignId, patch) =>
   });
 
 /** Ecoute locale, pour le MJ qui choisit un son (personne d'autre ne l'entend). */
-export const previewSound = (url) => playSfx({ url, volume: 0.9 });
+export const previewSound = (url) => playSfx({ url, volume: 1 });
