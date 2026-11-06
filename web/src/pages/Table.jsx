@@ -12,6 +12,7 @@ import { AssetLibrary } from '../components/AssetLibrary.jsx';
 import { TokenInspector } from '../components/TokenInspector.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
 import { WhisperDock } from '../components/WhisperDock.jsx';
+import { VoicePanel } from '../components/VoicePanel.jsx';
 import { Tabs, Spinner, useToast, Avatar } from '../components/Ui.jsx';
 import { IconPanelOpen } from '../components/Icons.jsx';
 
@@ -570,6 +571,7 @@ export function TablePage() {
               { key: 'party', label: 'Groupe' },
               { key: 'combat', label: 'Combat' },
               { key: 'handouts', label: 'Docs' },
+              { key: 'voice', label: 'Com.' },
             ]}
           />
           <div className="rail-body">
@@ -592,6 +594,7 @@ export function TablePage() {
             ) : null}
             {rightTab === 'combat' ? <CombatTracker /> : null}
             {rightTab === 'handouts' ? <HandoutPanel /> : null}
+            {rightTab === 'voice' ? <VoicePanel /> : null}
           </div>
         </aside>
       </div>

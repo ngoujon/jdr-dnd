@@ -4,6 +4,7 @@ import { env } from '../lib/env.js';
 import { verifyToken } from '../lib/auth.js';
 import { rollDice, parseRollCommand } from '../lib/dice.js';
 import { setIo, roomCampaign, roomGM, roomUser, emitToCampaign, emitToGMs, emitToUser } from './hub.js';
+import { attachVoice } from './voice.js';
 
 /** Emojis de réaction autorisés : même liste que REACTIONS dans web/src/pages/Table.jsx. */
 const REACTION_EMOJIS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
@@ -95,6 +96,7 @@ export const attachRealtime = (httpServer) => {
   io.on('connection', (socket) => {
     const user = socket.data.user;
     socket.data.campaigns = new Set();
+    attachVoice(io, socket);
 
     socket.on('campaign:join', async (campaignId, ack) => {
       try {
