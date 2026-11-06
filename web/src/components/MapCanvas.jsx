@@ -340,12 +340,26 @@ export function MapCanvas({
     window.addEventListener('pointerup', onUp);
   };
 
-  const onTokenPointerDown = (token) => (e) => {
+  const onTokenPointerDown = (clicked) => (e) => {
     // Hors outil selection (mesure, dessin, ping...), le clic sur un pion est
     // traite comme un clic sur la carte : on peut mesurer depuis un pion.
     if (e.button !== 0 || tool !== 'select' || e.altKey) return;
     e.stopPropagation();
-    if (!canMoveToken(token)) return;
+    let token = clicked;
+    if (!canMoveToken(token)) {
+      // Un pion qu'on ne peut pas bouger (celui du MJ, d'un autre joueur) peut
+      // recouvrir le sien : on attrape alors le pion deplacable juste dessous.
+      const p = toScene(e.clientX, e.clientY);
+      token = [...tokens]
+        .sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0))
+        .find(
+          (t) =>
+            t.id !== clicked.id &&
+            canMoveToken(t) &&
+            p.x >= t.x && p.x <= t.x + t.width && p.y >= t.y && p.y <= t.y + t.height,
+        );
+      if (!token) return;
+    }
 
     const nextSelection = e.shiftKey
       ? selection.includes(token.id)

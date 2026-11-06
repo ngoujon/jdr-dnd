@@ -85,9 +85,18 @@ tokensRouter.post(
       // Un seul pion de MJ par scene : un nouveau clic le ramene au point demande.
       const existing = await prisma.token.findFirst({ where: { sceneId: scene.id, isGmPawn: true } });
       if (existing) {
+        // Ramene sous les autres pions, pour ne pas recouvrir celui d'un joueur.
+        const minZ = await prisma.token.aggregate({
+          where: { sceneId: scene.id, id: { not: existing.id } },
+          _min: { zIndex: true },
+        });
         const moved = await prisma.token.update({
           where: { id: existing.id },
-          data: { x: data.x ?? existing.x, y: data.y ?? existing.y },
+          data: {
+            x: data.x ?? existing.x,
+            y: data.y ?? existing.y,
+            zIndex: Math.min(existing.zIndex, (minZ._min.zIndex ?? 0) - 1),
+          },
         });
         await broadcastToken(req.campaign, 'token:updated', moved);
         return res.json({ token: moved, repositioned: true });
@@ -95,6 +104,9 @@ tokensRouter.post(
       data.ownerId = req.user.id;
       data.characterId = null;
       data.layer = 'TOKEN';
+      // Sous tous les autres pions : il ne doit jamais cacher celui d'un joueur.
+      const minZ = await prisma.token.aggregate({ where: { sceneId: scene.id }, _min: { zIndex: true } });
+      data.zIndex = (minZ._min.zIndex ?? 0) - 1;
     }
     if (!req.isGM) {
       // Un joueur ne peut deposer qu'un pion de son propre personnage.
