@@ -999,6 +999,14 @@
 .asset-card:hover .asset-del { display: flex; }
 
 .asset-library.dragging .asset-grid { opacity: 0.45; }
+/* Bibliotheque rangee en dossiers : c'est l'ensemble qui defile, pas chaque grille. */
+.asset-scroll { flex: 1; min-height: 120px; overflow-y: auto; }
+.asset-scroll .scene-tree .asset-grid { padding: 0; overflow: visible; min-height: 0; flex: none; }
+.asset-scroll .scene-folder > .folder-body { padding: 0 6px 6px; }
+.asset-scroll .scene-root { min-height: 40px; }
+.folder-groups-bar { padding: 0 10px 8px; gap: 6px; }
+.scene-folder > .folder-body > .handout-list { padding: 0 6px 6px 14px; }
+.scene-root > .handout-list { padding: 0; }
 .asset-drop { margin: 0 10px; }
 .asset-library.compact .asset-drop { padding: 10px; }
 
