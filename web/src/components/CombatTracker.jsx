@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTable } from '../lib/store.js';
 import { useToast } from './Ui.jsx';
 import { HpBar } from './PartyPanel.jsx';
@@ -109,9 +109,48 @@ export function CombatTracker() {
     update({ entries: list, turnIndex });
   };
 
+  // Copies immediates de l'etat du glisser : le depot peut arriver avant que
+  // React ait re-rendu le dernier survol, l'etat lu serait alors perime.
+  const dragRef = useRef(null);
+  const dropRef = useRef(null);
+  const listRef = useRef(null);
+
   const endDrag = () => {
+    dragRef.current = null;
+    dropRef.current = null;
     setDragId(null);
     setDropAt(null);
+  };
+
+  /** Emplacement vise d'apres la hauteur du pointeur, mesure sur toute la
+   *  liste : les espaces entre les lignes et le bas de la liste comptent aussi. */
+  const dropIndexAt = (clientY) => {
+    const rows = [...(listRef.current?.children || [])];
+    const index = rows.findIndex((row) => {
+      const box = row.getBoundingClientRect();
+      return clientY < box.top + box.height / 2;
+    });
+    return index === -1 ? rows.length : index;
+  };
+
+  const onListDragOver = (e) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const index = dropIndexAt(e.clientY);
+    if (dropRef.current !== index) {
+      dropRef.current = index;
+      setDropAt(index);
+    }
+  };
+
+  const onListDrop = (e) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    const id = dragRef.current;
+    const index = dropIndexAt(e.clientY);
+    endDrag();
+    moveEntry(id, index);
   };
 
   const patchEntry = (id, patch) =>
@@ -207,7 +246,7 @@ export function CombatTracker() {
         </button>
       </div>
 
-      <ol className="initiative-list gm">
+      <ol className="initiative-list gm" ref={listRef} onDragOver={onListDragOver} onDrop={onListDrop}>
         {sorted.map((entry, index) => (
           <li
             key={entry.id}
@@ -219,22 +258,16 @@ export function CombatTracker() {
             ].join(' ')}
             draggable
             onDragStart={(e) => {
-              // Les champs et boutons de la ligne restent utilisables normalement.
-              if (['INPUT', 'BUTTON'].includes(e.target.tagName)) return;
+              // Depuis un champ ou un bouton, pas de glisser : sinon le navigateur
+              // lancait un glisser "vide" qui ne deplacait rien.
+              if (e.target.closest?.('input, button')) {
+                e.preventDefault();
+                return;
+              }
               e.dataTransfer.setData('text/plain', entry.id);
               e.dataTransfer.effectAllowed = 'move';
+              dragRef.current = entry.id;
               setDragId(entry.id);
-            }}
-            onDragOver={(e) => {
-              if (!dragId) return;
-              e.preventDefault();
-              const box = e.currentTarget.getBoundingClientRect();
-              setDropAt(e.clientY < box.top + box.height / 2 ? index : index + 1);
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragId && dropAt != null) moveEntry(dragId, dropAt);
-              endDrag();
             }}
             onDragEnd={endDrag}
           >
