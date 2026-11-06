@@ -1948,6 +1948,10 @@
 .light-list li > button.proficient { color: var(--text); }
 .light-attack { display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 12.5px; }
 .light-attack + .light-attack { border-top: 1px solid var(--line-soft); }
+/* Les boutons de jet gardent leur taille : sans cela, la regle des listes
+   (largeur 100 %) les etirait et ecrasait le nom de l'attaque. */
+.light-list li.light-attack > button { width: auto; flex: none; justify-content: center; }
+.light-attack > .ellipsis { min-width: 0; color: var(--text); }
 .rank-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-500); flex: none; }
 .rank-dot.r1 { background: var(--brass); border-color: var(--brass); }
 .rank-dot.r2 { background: var(--brass-bright); border-color: var(--brass-bright); box-shadow: 0 0 0 2px rgba(224, 167, 92, 0.3); }
