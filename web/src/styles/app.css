@@ -1436,6 +1436,98 @@
 .spell-list li { display: flex; align-items: center; gap: 6px; }
 .spell-list li .input:first-of-type { flex: 2; }
 
+/* Sorts connus : une carte par sort, rangees par niveau. */
+.spell-groups { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.spell-group { display: flex; flex-direction: column; gap: 8px; }
+.spell-group-title {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--brass-bright);
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 4px;
+}
+.spell-group-slots { margin-left: auto; font-size: 11px; color: var(--text-dim); text-transform: none; letter-spacing: 0; }
+.spell-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--ink-500);
+  border-radius: var(--radius-sm);
+  background: var(--ink-850);
+}
+.spell-card.prepared { border-left-color: var(--brass); }
+.spell-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.spell-name { font-size: 15px; color: var(--text); }
+.spell-name-input { flex: 1; min-width: 160px; font-weight: 600; }
+.spell-prep {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+.spell-prep.on { border-color: var(--brass); background: rgba(192, 135, 63, 0.16); color: var(--brass-bright); }
+.spell-prep:disabled { cursor: default; }
+.roll-chip-inline {
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(208, 87, 76, 0.55);
+  background: rgba(208, 87, 76, 0.12);
+  color: #e8857b;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.roll-chip-inline:hover { background: rgba(208, 87, 76, 0.26); }
+.spell-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.spell-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--ink-750); color: var(--text-dim); }
+.spell-tag.warn { background: rgba(192, 135, 63, 0.14); color: var(--brass-bright); }
+.spell-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 12px;
+}
+.spell-facts div { display: flex; flex-direction: column; gap: 1px; }
+.spell-facts dt { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); }
+.spell-facts dd { margin: 0; font-size: 13px; color: var(--text); }
+.spell-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.spell-text.open { display: block; -webkit-line-clamp: unset; }
+.spell-more { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--brass-bright); font-size: 12px; cursor: pointer; }
+.spell-more:hover { text-decoration: underline; }
+.spell-edit { display: flex; gap: 8px; flex-wrap: wrap; }
+.spell-edit .select { max-width: 150px; }
+.spell-notes { flex: 1; min-width: 180px; }
+
+.light-spells { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.light-spells li { border: 1px solid var(--line-soft); border-left: 3px solid var(--ink-500); border-radius: 6px; background: var(--ink-850); }
+.light-spells li.prepared { border-left-color: var(--brass); }
+.light-spell-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; }
+.light-spell-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text); font-size: 12.5px; text-align: left; cursor: pointer; }
+.light-spell-level { flex: none; font-size: 10px; font-weight: 700; color: var(--brass-bright); min-width: 24px; }
+.light-spells .roll-chip-inline { padding: 2px 6px; font-size: 11px; }
+.light-spell-body { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.light-spell-body p { margin: 0; line-height: 1.5; color: var(--text); }
+
 .currency-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 8px; }
 .currency-box { display: flex; flex-direction: column; gap: 4px; }
 .currency-box > span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); text-align: center; }

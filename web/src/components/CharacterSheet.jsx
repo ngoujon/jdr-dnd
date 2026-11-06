@@ -765,6 +765,7 @@ function LightSheet({
                 </div>
               );
             })}
+            <LightSpellList known={character.spellcasting?.known || []} doRoll={doRoll} />
           </div>
         ) : null}
 
@@ -1272,6 +1273,179 @@ function SpellHelp({ name }) {
   );
 }
 
+/** Sorts ranges par niveau (tours de magie d'abord), en gardant leur position dans la fiche. */
+function spellGroups(known) {
+  const groups = new Map();
+  known.forEach((spell, index) => {
+    const level = Number(spell.level) || 0;
+    if (!groups.has(level)) groups.set(level, []);
+    groups.get(level).push({ spell, index });
+  });
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([level, items]) => ({ level, items }));
+}
+
+const DICE_RE = /\d+d\d+(\s*[+-]\s*\d+)?/i;
+
+/**
+ * Un sort connu, lisible d'un coup d'oeil : nom, niveau, temps d'incantation,
+ * portee, duree, et le texte du sort quand il vient du catalogue.
+ */
+function SpellCard({ spell, editable, onChange, onRemove, doRoll }) {
+  const info = findSpell(spell.name);
+  const [open, setOpen] = useState(false);
+  const formula = (spell.notes?.match(DICE_RE) || info?.text?.match(DICE_RE))?.[0]?.replace(/\s+/g, '');
+  const facts = info
+    ? [
+        ['⏱', 'Incantation', info.time],
+        ['🎯', 'Portée', info.range],
+        ['⌛', 'Durée', info.duration],
+        ['✋', 'Composantes', info.components],
+      ]
+    : [];
+
+  return (
+    <article className={`spell-card ${spell.prepared ? 'prepared' : ''}`}>
+      <div className="spell-card-head">
+        <button
+          type="button"
+          className={`spell-prep ${spell.prepared ? 'on' : ''}`}
+          onClick={() => editable && onChange({ prepared: !spell.prepared })}
+          disabled={!editable}
+          title={spell.prepared ? 'Préparé : cliquer pour retirer' : 'Non préparé : cliquer pour préparer'}
+        >
+          {spell.prepared ? '★ Préparé' : '☆ Préparer'}
+        </button>
+        {editable && !info ? (
+          <LazyInput
+            className="input sm spell-name-input"
+            value={spell.name}
+            onCommit={(name) => onChange({ name })}
+            placeholder="Nom du sort"
+          />
+        ) : (
+          <strong className="spell-name">{spell.name || 'Sort sans nom'}</strong>
+        )}
+        <span className="spacer" />
+        {formula ? (
+          <button type="button" className="roll-chip-inline" onClick={() => doRoll(formula, spell.name)} title="Lancer les dés du sort">
+            🎲 {formula}
+          </button>
+        ) : null}
+        {editable ? (
+          <button type="button" className="btn xs ghost" onClick={onRemove} title="Retirer ce sort">
+            ✕
+          </button>
+        ) : null}
+      </div>
+
+      {info ? (
+        <div className="spell-tags">
+          <span className="spell-tag">{info.school}</span>
+          {info.conc ? <span className="spell-tag warn" title="Le sort s'arrête si vous perdez votre concentration">Concentration</span> : null}
+          {info.ritual ? <span className="spell-tag" title="Peut être lancé sans emplacement, en 10 minutes de plus">Rituel</span> : null}
+        </div>
+      ) : null}
+
+      {facts.length ? (
+        <dl className="spell-facts">
+          {facts.map(([icon, label, value]) => (
+            <div key={label}>
+              <dt>
+                <span aria-hidden="true">{icon}</span> {label}
+              </dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {info?.text ? (
+        <p className={`spell-text ${open ? 'open' : ''}`}>{info.text}</p>
+      ) : null}
+      {info?.text && info.text.length > 140 ? (
+        <button type="button" className="spell-more" onClick={() => setOpen((v) => !v)}>
+          {open ? 'Réduire' : 'Lire tout le sort'}
+        </button>
+      ) : null}
+
+      <div className="spell-edit">
+        {editable ? (
+          <select
+            className="select sm"
+            value={spell.level ?? 0}
+            onChange={(e) => onChange({ level: Number(e.target.value) })}
+            title="Niveau du sort"
+          >
+            <option value={0}>Tour de magie</option>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((l) => (
+              <option key={l} value={l}>
+                Niveau {l}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {editable || spell.notes ? (
+          <LazyInput
+            className="input sm spell-notes"
+            value={spell.notes || ''}
+            onCommit={(notes) => onChange({ notes })}
+            disabled={!editable}
+            placeholder="Mes notes : dégâts, cible, rappel…"
+          />
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+/** Fiche reduite : les sorts connus, un clic sur un nom affiche son texte. */
+function LightSpellList({ known, doRoll }) {
+  const [openId, setOpenId] = useState(null);
+  if (!known.length) return null;
+  return (
+    <ul className="light-spells">
+      {spellGroups(known).flatMap(({ items }) =>
+        items.map(({ spell, index }) => {
+          const info = findSpell(spell.name);
+          const key = spell.id || index;
+          const formula = (spell.notes?.match(DICE_RE) || info?.text?.match(DICE_RE))?.[0]?.replace(/\s+/g, '');
+          const open = openId === key;
+          return (
+            <li key={key} className={spell.prepared ? 'prepared' : ''}>
+              <div className="light-spell-head">
+                <button
+                  type="button"
+                  className="light-spell-name"
+                  onClick={() => setOpenId(open ? null : key)}
+                  title={open ? 'Masquer le texte' : 'Afficher le texte du sort'}
+                >
+                  <span className="light-spell-level">{Number(spell.level) ? `N${spell.level}` : 'TdM'}</span>
+                  <span className="ellipsis">{spell.name || 'Sort sans nom'}</span>
+                </button>
+                {formula ? (
+                  <button type="button" className="roll-chip-inline" onClick={() => doRoll(formula, spell.name)}>
+                    🎲 {formula}
+                  </button>
+                ) : null}
+              </div>
+              {open ? (
+                <div className="light-spell-body">
+                  {info ? (
+                    <span className="faint">
+                      {info.time} · {info.range} · {info.duration}
+                    </span>
+                  ) : null}
+                  <p>{info?.text || spell.notes || 'Pas de description.'}</p>
+                </div>
+              ) : null}
+            </li>
+          );
+        }),
+      )}
+    </ul>
+  );
+}
+
 function SpellsTab({ character, editable, save, derived, doRoll }) {
   const sc = character.spellcasting || { ability: 'int', slots: {}, known: [] };
   const known = sc.known || [];
@@ -1385,66 +1559,37 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
             </>
           ) : null}
         </div>
-        <ul className="spell-list">
-          {known.map((spell, index) => (
-            <li key={spell.id || index}>
-              <button
-                type="button"
-                className={`prof-dot ${spell.prepared ? 'rank-1' : 'rank-0'}`}
-                onClick={() => editable && updateSpell(index, { prepared: !spell.prepared })}
-                title={spell.prepared ? 'Préparé' : 'Non préparé'}
-              />
-              <LazyInput
-                className="input sm"
-                value={spell.name}
-                onCommit={(name) => updateSpell(index, { name })}
-                disabled={!editable}
-                placeholder="Nom du sort"
-              />
-              <SpellHelp name={spell.name} />
-              <select
-                className="select sm"
-                style={{ maxWidth: 110 }}
-                value={spell.level ?? 0}
-                onChange={(e) => updateSpell(index, { level: Number(e.target.value) })}
-                disabled={!editable}
-              >
-                <option value={0}>Tour de magie</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((l) => (
-                  <option key={l} value={l}>
-                    Niveau {l}
-                  </option>
+        {known.length ? (
+          <div className="spell-groups">
+            {spellGroups(known).map(({ level, items }) => (
+              <div key={level} className="spell-group">
+                <h5 className="spell-group-title">
+                  {level === 0 ? 'Tours de magie' : `Niveau ${level}`}
+                  <span className="faint">{items.length}</span>
+                  {level > 0 && sc.slots?.[level]?.max ? (
+                    <span className="spell-group-slots">
+                      {Math.max(0, sc.slots[level].max - (sc.slots[level].used || 0))}/{sc.slots[level].max} emplacements
+                    </span>
+                  ) : null}
+                </h5>
+                {items.map(({ spell, index }) => (
+                  <SpellCard
+                    key={spell.id || index}
+                    spell={spell}
+                    editable={editable}
+                    onChange={(patch) => updateSpell(index, patch)}
+                    onRemove={() => setSc({ known: known.filter((_, i) => i !== index) })}
+                    doRoll={doRoll}
+                  />
                 ))}
-              </select>
-              <LazyInput
-                className="input sm"
-                value={spell.notes || ''}
-                onCommit={(notes) => updateSpell(index, { notes })}
-                disabled={!editable}
-                placeholder="Dégâts, portée, durée…"
-              />
-              {spell.notes && /\d+d\d+/.test(spell.notes) ? (
-                <button
-                  type="button"
-                  className="btn xs"
-                  onClick={() => doRoll(spell.notes.match(/\d+d\d+([+-]\d+)?/)[0], spell.name)}
-                >
-                  Lancer
-                </button>
-              ) : null}
-              {editable ? (
-                <button
-                  type="button"
-                  className="btn xs ghost"
-                  onClick={() => setSc({ known: known.filter((_, i) => i !== index) })}
-                >
-                  ✕
-                </button>
-              ) : null}
-            </li>
-          ))}
-          {!known.length ? <li className="empty">Aucun sort.</li> : null}
-        </ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="faint" style={{ margin: '8px 0 0' }}>
+            Aucun sort. {editable ? 'Utilisez « Chercher un sort » pour en ajouter un depuis le catalogue.' : ''}
+          </p>
+        )}
 
         <SpellPicker
           open={picking}
