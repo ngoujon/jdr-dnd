@@ -700,19 +700,21 @@ function LightSheet({
                   </span>
                   <button
                     type="button"
-                    className="btn xs"
+                    className="roll-chip attack"
                     onClick={(e) => doRoll(`1d20${signed(attack.bonus ?? 0)}`, `${attack.name} — attaque`, rollMode(e))}
                     title="Jet d'attaque — Maj : avantage, Ctrl : désavantage"
                   >
+                    <span className="roll-chip-label">Att.</span>
                     {signed(attack.bonus ?? 0)}
                   </button>
                   {attack.damage ? (
                     <button
                       type="button"
-                      className="btn xs"
+                      className="roll-chip damage"
                       onClick={() => doRoll(attack.damage, `${attack.name} — dégâts${attack.type ? ` (${attack.type})` : ''}`)}
                       title="Jet de dégâts"
                     >
+                      <span className="roll-chip-label">Dég.</span>
                       {attack.damage}
                     </button>
                   ) : null}
