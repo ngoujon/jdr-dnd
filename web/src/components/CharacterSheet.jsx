@@ -6,7 +6,7 @@ import {
   speedToMeters, metersToSpeed, formatMeters,
 } from '../lib/dnd.js';
 import { api } from '../lib/api.js';
-import { Modal, LazyInput, Spinner, InfoTip, FieldLabel, useToast, useConfirm } from './Ui.jsx';
+import { Modal, LazyInput, Spinner, InfoTip, FieldLabel, Hint, useToast, useConfirm } from './Ui.jsx';
 import {
   IconCharacter, IconSkills, IconCombat, IconSpells, IconGear, IconStory, IconLook, IconNotes,
   IconExpand, IconPanelCollapse, IconSwap, IconClose,
@@ -1286,6 +1286,47 @@ function spellGroups(known) {
 
 const DICE_RE = /\d+d\d+(\s*[+-]\s*\d+)?/i;
 
+/** Explications affichees au survol des cartes de sorts. */
+const SPELL_FACT_HELP = {
+  Incantation: {
+    help: "Le temps qu'il faut pour lancer le sort. « 1 action » : c'est votre action du tour. « 1 action bonus » : en plus de votre action. « 1 réaction » : en dehors de votre tour, quand le déclencheur se produit.",
+    example: '1 action',
+  },
+  Portée: {
+    help: "Jusqu'où le sort peut atteindre sa cible. « Contact » : il faut toucher la cible. « Personnelle » : le sort ne vise que vous.",
+    example: '18 m',
+  },
+  Durée: {
+    help: "Combien de temps l'effet dure. « Instantanée » : l'effet a lieu tout de suite puis s'arrête. « Concentration » : l'effet s'arrête si vous êtes déconcentré.",
+    example: 'Concentration, 1 minute',
+  },
+  Composantes: {
+    help: "Ce qu'il faut pour lancer le sort. V = verbale : prononcer des paroles (impossible si vous êtes bâillonné). G = gestuelle : faire des gestes avec une main libre. M = matérielle : un petit objet ou un ingrédient, souvent remplacé par un focaliseur (symbole sacré, baguette, sacoche).",
+    example: 'V, G, M',
+  },
+};
+
+const SCHOOL_HELP = {
+  Abjuration: 'protéger, bloquer, bannir',
+  Divination: 'savoir, voir, révéler',
+  Enchantement: "influencer l'esprit des créatures",
+  Évocation: 'produire de l’énergie : feu, foudre, soin',
+  Illusion: 'tromper les sens',
+  Invocation: 'faire apparaître des créatures ou des objets',
+  Nécromancie: 'la vie et la mort',
+  Transmutation: 'changer la nature des choses',
+};
+
+/** Detaille les composantes du sort, lettre par lettre. */
+const componentsDetail = (components = '') =>
+  [
+    components.includes('V') ? 'V : parler à voix haute' : null,
+    components.includes('G') ? 'G : une main libre pour les gestes' : null,
+    components.includes('M') ? 'M : un ingrédient ou un focaliseur' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
 /**
  * Un sort connu, lisible d'un coup d'oeil : nom, niveau, temps d'incantation,
  * portee, duree, et le texte du sort quand il vient du catalogue.
@@ -1306,15 +1347,20 @@ function SpellCard({ spell, editable, onChange, onRemove, doRoll }) {
   return (
     <article className={`spell-card ${spell.prepared ? 'prepared' : ''}`}>
       <div className="spell-card-head">
-        <button
-          type="button"
-          className={`spell-prep ${spell.prepared ? 'on' : ''}`}
-          onClick={() => editable && onChange({ prepared: !spell.prepared })}
-          disabled={!editable}
-          title={spell.prepared ? 'Préparé : cliquer pour retirer' : 'Non préparé : cliquer pour préparer'}
+        <Hint
+          className="no-underline"
+          help="Un sort préparé est prêt à être lancé aujourd'hui. Les clercs, druides, magiciens et paladins choisissent leurs sorts préparés après un repos long ; les autres classes ont tous leurs sorts connus prêts."
+          example="Cliquez pour préparer ou retirer le sort"
         >
-          {spell.prepared ? '★ Préparé' : '☆ Préparer'}
-        </button>
+          <button
+            type="button"
+            className={`spell-prep ${spell.prepared ? 'on' : ''}`}
+            onClick={() => editable && onChange({ prepared: !spell.prepared })}
+            disabled={!editable}
+          >
+            {spell.prepared ? '★ Préparé' : '☆ Préparer'}
+          </button>
+        </Hint>
         {editable && !info ? (
           <LazyInput
             className="input sm spell-name-input"
@@ -1327,9 +1373,14 @@ function SpellCard({ spell, editable, onChange, onRemove, doRoll }) {
         )}
         <span className="spacer" />
         {formula ? (
-          <button type="button" className="roll-chip-inline" onClick={() => doRoll(formula, spell.name)} title="Lancer les dés du sort">
-            🎲 {formula}
-          </button>
+          <Hint
+            className="no-underline"
+            help={`Lance ${formula} et annonce le résultat dans le chat : dégâts, soins ou bonus du sort.`}
+          >
+            <button type="button" className="roll-chip-inline" onClick={() => doRoll(formula, spell.name)}>
+              🎲 {formula}
+            </button>
+          </Hint>
         ) : null}
         {editable ? (
           <button type="button" className="btn xs ghost" onClick={onRemove} title="Retirer ce sort">
@@ -1340,9 +1391,29 @@ function SpellCard({ spell, editable, onChange, onRemove, doRoll }) {
 
       {info ? (
         <div className="spell-tags">
-          <span className="spell-tag">{info.school}</span>
-          {info.conc ? <span className="spell-tag warn" title="Le sort s'arrête si vous perdez votre concentration">Concentration</span> : null}
-          {info.ritual ? <span className="spell-tag" title="Peut être lancé sans emplacement, en 10 minutes de plus">Rituel</span> : null}
+          <Hint
+            className="spell-tag"
+            help={`École de magie : la famille du sort.${SCHOOL_HELP[info.school] ? ` ${info.school} : ${SCHOOL_HELP[info.school]}.` : ''} Sert surtout pour certaines capacités de classe.`}
+          >
+            {info.school}
+          </Hint>
+          {info.conc ? (
+            <Hint
+              className="spell-tag warn"
+              help="Vous devez rester concentré pour que le sort continue. Un seul sort de concentration à la fois. Si vous subissez des dégâts, faites un jet de sauvegarde de Constitution (DD 10 ou la moitié des dégâts) ou le sort s'arrête."
+              example="Lancer un 2e sort de concentration arrête le premier"
+            >
+              Concentration
+            </Hint>
+          ) : null}
+          {info.ritual ? (
+            <Hint
+              className="spell-tag"
+              help="Peut être lancé comme rituel : 10 minutes de plus, mais sans dépenser d'emplacement de sort."
+            >
+              Rituel
+            </Hint>
+          ) : null}
         </div>
       ) : null}
 
@@ -1351,9 +1422,17 @@ function SpellCard({ spell, editable, onChange, onRemove, doRoll }) {
           {facts.map(([icon, label, value]) => (
             <div key={label}>
               <dt>
-                <span aria-hidden="true">{icon}</span> {label}
+                <Hint help={SPELL_FACT_HELP[label].help} example={SPELL_FACT_HELP[label].example}>
+                  <span aria-hidden="true">{icon}</span> {label}
+                </Hint>
               </dt>
-              <dd>{value}</dd>
+              <dd>
+                {label === 'Composantes' ? (
+                  <Hint help={`Pour ce sort : ${componentsDetail(value)}.`}>{value}</Hint>
+                ) : (
+                  value
+                )}
+              </dd>
             </div>
           ))}
         </dl>
@@ -1567,9 +1646,12 @@ function SpellsTab({ character, editable, save, derived, doRoll }) {
                   {level === 0 ? 'Tours de magie' : `Niveau ${level}`}
                   <span className="faint">{items.length}</span>
                   {level > 0 && sc.slots?.[level]?.max ? (
-                    <span className="spell-group-slots">
+                    <Hint
+                      className="spell-group-slots"
+                      help={`Emplacements restants / total pour les sorts de niveau ${level}. Lancer un sort de ce niveau en dépense un ; ils reviennent tous après un repos long.`}
+                    >
                       {Math.max(0, sc.slots[level].max - (sc.slots[level].used || 0))}/{sc.slots[level].max} emplacements
-                    </span>
+                    </Hint>
                   ) : null}
                 </h5>
                 {items.map(({ spell, index }) => (

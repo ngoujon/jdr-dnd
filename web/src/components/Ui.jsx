@@ -180,6 +180,22 @@ export function InfoTip({ help, example }) {
   );
 }
 
+/**
+ * Texte qui affiche une explication au survol (ou au focus clavier), sans
+ * bouton « i » : pour les libelles courts dont le sens n'est pas evident.
+ */
+export function Hint({ children, help, example, className = '' }) {
+  return (
+    <span className={`hint ${className}`} tabIndex={0}>
+      {children}
+      <span className="infotip-bubble" role="tooltip">
+        <span>{help}</span>
+        {example ? <em>Exemple : {example}</em> : null}
+      </span>
+    </span>
+  );
+}
+
 /** Intitulé de champ accompagné de sa bulle d'aide. */
 export function FieldLabel({ children, help, example }) {
   return (

@@ -1719,6 +1719,15 @@
 
 .field-label { display: inline-flex; align-items: center; }
 
+/* Libelle explique au survol : souligne en pointilles pour signaler l'aide. */
+.hint { position: relative; display: inline-flex; align-items: center; gap: 4px; cursor: help; outline: none; }
+.hint > :first-child, .hint { text-decoration: underline dotted var(--text-faint); text-underline-offset: 3px; }
+.hint .infotip-bubble { text-transform: none; letter-spacing: normal; font-size: 12px; font-weight: 400; color: var(--text); text-decoration: none; }
+.hint:hover > .infotip-bubble, .hint:focus-visible > .infotip-bubble { display: flex; animation: fade-in 0.12s ease-out; }
+.hint.no-underline, .hint.no-underline > :first-child, .hint.spell-tag { text-decoration: none; }
+/* Bulle ouverte vers la gauche pour les elements en bout de ligne. */
+.spell-card-head .hint:last-of-type .infotip-bubble, .spell-group-slots .infotip-bubble { left: auto; right: -6px; }
+
 /* Actions d'une carte de personnage : icônes seules, libellé porté par le
    title et aria-label pour rester compréhensible et accessible. */
 .card-actions { gap: 2px; align-items: center; }
