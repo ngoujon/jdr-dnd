@@ -1,41 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../lib/api.js';
 import { useTable } from '../lib/store.js';
 import { Modal, useToast, useConfirm, LazyInput } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
+import { useCollapsedFolders } from './FolderGroups.jsx';
 
 const DRAG_TYPE = 'application/x-scene';
-
-/** Dossiers replies, memorises par campagne dans ce navigateur. */
-function useCollapsedFolders(campaignId) {
-  const key = `scene-folders-collapsed:${campaignId}`;
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return new Set(JSON.parse(localStorage.getItem(key) || '[]'));
-    } catch {
-      return new Set();
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify([...collapsed]));
-    } catch {
-      /* stockage indisponible : le repli ne survit simplement pas au rechargement */
-    }
-  }, [key, collapsed]);
-
-  const toggle = (id) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  const setAll = (ids) => setCollapsed(new Set(ids));
-
-  return [collapsed, toggle, setAll];
-}
 
 /** Liste des scenes du MJ, rangees en dossiers repliables. */
 export function SceneManager() {
@@ -53,7 +23,7 @@ export function SceneManager() {
   const moveSceneToFolder = useTable((s) => s.moveSceneToFolder);
   const toast = useToast();
   const [confirm, confirmNode] = useConfirm();
-  const [collapsed, toggleFolder, setCollapsed] = useCollapsedFolders(campaignId);
+  const [collapsed, toggleFolder, setCollapsed] = useCollapsedFolders(`scene-folders-collapsed:${campaignId}`);
 
   // Modale de creation de scene : { name, folderId }.
   const [creating, setCreating] = useState(null);

@@ -106,7 +106,11 @@ const initialTable = {
   tokens: [],
   characters: [],
   handouts: [],
+  /** Dossiers de rangement des documents (MJ seulement). */
+  handoutFolders: [],
   assets: [],
+  /** Dossiers de la bibliotheque (pions, cartes) de l'utilisateur, et ce qu'ils contiennent. */
+  assetFolders: { folders: [], entries: [] },
   messages: [],
   combat: null,
   online: [],
@@ -153,6 +157,14 @@ export const useTable = create((set, get) => ({
         messages: messages.messages,
         assets: assets.assets,
       });
+      // Le rangement n'est pas indispensable pour jouer : un echec ne bloque pas la table.
+      get().refreshAssetFolders().catch(() => {});
+      if (isGM) {
+        api
+          .get(`/campaigns/${campaignId}/handout-folders`)
+          .then(({ folders }) => set({ handoutFolders: folders }))
+          .catch(() => {});
+      }
 
       const sceneId = campaign.activeSceneId || campaign.scenes?.[0]?.id;
       if (sceneId) await get().loadScene(sceneId);
@@ -274,6 +286,16 @@ export const useTable = create((set, get) => ({
     on('handout:shared', ({ handout }) =>
       set((state) => ({ handouts: replace(state.handouts, handout) })),
     );
+    on('handout:updated-gm', ({ handout }) =>
+      set((state) => ({ handouts: replace(state.handouts, handout) })),
+    );
+    on('handout-folders:updated', ({ folders }) => set({ handoutFolders: folders }));
+    on('handouts:folder-cleared', ({ folderId }) =>
+      set((state) => ({
+        handouts: state.handouts.map((h) => (h.folderId === folderId ? { ...h, folderId: null } : h)),
+      })),
+    );
+    on('asset-folders:updated', (data) => set({ assetFolders: data }));
     on('handout:revoked', ({ handoutId }) =>
       set((state) => ({ handouts: state.handouts.filter((h) => h.id !== handoutId) })),
     );
@@ -586,5 +608,86 @@ export const useTable = create((set, get) => ({
     const { campaignId } = get();
     const { handouts } = await api.get(`/campaigns/${campaignId}/handouts`);
     set({ handouts });
+  },
+
+  /* --- Dossiers des documents (MJ) -------------------------------------- */
+
+  async createHandoutFolder(name) {
+    const { campaignId } = get();
+    const { folders } = await api.post(`/campaigns/${campaignId}/handout-folders`, { name });
+    set({ handoutFolders: folders });
+  },
+
+  async renameHandoutFolder(folderId, name) {
+    const { campaignId } = get();
+    const { folders } = await api.patch(`/campaigns/${campaignId}/handout-folders/${folderId}`, { name });
+    set({ handoutFolders: folders });
+  },
+
+  async deleteHandoutFolder(folderId) {
+    const { campaignId } = get();
+    const { folders } = await api.del(`/campaigns/${campaignId}/handout-folders/${folderId}`);
+    set((state) => ({
+      handoutFolders: folders,
+      handouts: state.handouts.map((h) => (h.folderId === folderId ? { ...h, folderId: null } : h)),
+    }));
+  },
+
+  /** Deplacement affiche tout de suite, annule si le serveur refuse. */
+  async moveHandoutToFolder(handoutId, folderId) {
+    const { campaignId } = get();
+    const apply = (value) =>
+      set((state) => ({ handouts: state.handouts.map((h) => (h.id === handoutId ? { ...h, folderId: value } : h)) }));
+    const previous = get().handouts.find((h) => h.id === handoutId)?.folderId ?? null;
+    apply(folderId);
+    try {
+      await api.patch(`/campaigns/${campaignId}/handouts/${handoutId}`, { folderId });
+    } catch (err) {
+      apply(previous);
+      throw err;
+    }
+  },
+
+  /* --- Dossiers de la bibliotheque (pions, cartes) ------------------------ */
+
+  async refreshAssetFolders() {
+    set({ assetFolders: await api.get('/asset-folders') });
+  },
+
+  async createAssetFolder(scope, name) {
+    const { folders, entries } = await api.post('/asset-folders', { scope, name });
+    set({ assetFolders: { folders, entries } });
+  },
+
+  async renameAssetFolder(folderId, name) {
+    const { folders, entries } = await api.patch(`/asset-folders/${folderId}`, { name });
+    set({ assetFolders: { folders, entries } });
+  },
+
+  async deleteAssetFolder(folderId) {
+    const { folders, entries } = await api.del(`/asset-folders/${folderId}`);
+    set({ assetFolders: { folders, entries } });
+  },
+
+  /** Deplacement affiche tout de suite, annule si le serveur refuse. */
+  async moveAssetToFolder(assetId, scope, folderId) {
+    const before = get().assetFolders;
+    const inScope = new Set(before.folders.filter((f) => f.scope === scope).map((f) => f.id));
+    set({
+      assetFolders: {
+        ...before,
+        entries: [
+          ...before.entries.filter((e) => !(e.assetId === assetId && inScope.has(e.folderId))),
+          ...(folderId ? [{ assetId, folderId }] : []),
+        ],
+      },
+    });
+    try {
+      const { folders, entries } = await api.put('/asset-folders/place', { assetId, scope, folderId });
+      set({ assetFolders: { folders, entries } });
+    } catch (err) {
+      set({ assetFolders: before });
+      throw err;
+    }
   },
 }));

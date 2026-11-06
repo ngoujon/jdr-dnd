@@ -55,6 +55,7 @@ model User {
   messages       ChatMessage[]
   tokens         Token[]
   characterNotes CharacterNote[]
+  folders        Folder[]
 }
 
 model Campaign {
@@ -77,6 +78,7 @@ model Campaign {
   handouts   Handout[]
   messages   ChatMessage[]
   assets     Asset[]
+  folders    Folder[]
   combat     Combat?
 
   @@index([gmId])
@@ -312,6 +314,7 @@ model Asset {
 
   owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  folders  AssetFolderEntry[]
 
   @@index([ownerId])
   @@index([campaignId])
@@ -331,10 +334,57 @@ model Handout {
   order      Int     @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  /// Dossier de rangement cote MJ (null = hors dossier)
+  folderId   String?
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  folder   Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@index([campaignId])
+  @@index([folderId])
+}
+
+/// Ce que range un dossier : les documents d'une campagne, ou les pions et
+/// les cartes de la bibliotheque d'un utilisateur.
+enum FolderScope {
+  HANDOUT
+  TOKEN
+  MAP
+}
+
+/// Dossier de rangement. Les dossiers de documents appartiennent a une
+/// campagne (outil du MJ) ; ceux des pions et des cartes appartiennent a
+/// l'utilisateur, car sa bibliotheque le suit d'une campagne a l'autre.
+/// Supprimer un dossier ne supprime jamais ce qu'il contient.
+model Folder {
+  id         String      @id @default(cuid())
+  ownerId    String
+  campaignId String?
+  scope      FolderScope
+  name       String
+  order      Int         @default(0)
+  createdAt  DateTime    @default(now())
+
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  handouts Handout[]
+  assets   AssetFolderEntry[]
+
+  @@index([ownerId, scope])
+  @@index([campaignId, scope])
+}
+
+/// Place d'une ressource dans un dossier. Table a part : les ressources
+/// fournies avec l'app sont communes a tous, chacun les range a sa facon.
+model AssetFolderEntry {
+  folderId String
+  assetId  String
+
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  asset  Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([folderId, assetId])
+  @@index([assetId])
 }
 
 model ChatMessage {

@@ -7,6 +7,8 @@ import { tokensRouter } from './tokens.js';
 import { charactersRouter } from './characters.js';
 import { assetsRouter } from './assets.js';
 import { handoutsRouter } from './handouts.js';
+import { handoutFoldersRouter } from './handoutFolders.js';
+import { assetFoldersRouter } from './assetFolders.js';
 import { chatRouter } from './chat.js';
 import { combatRouter } from './combat.js';
 
@@ -19,7 +21,9 @@ apiRouter.use('/campaigns/:campaignId/scenes', scenesRouter);
 apiRouter.use('/campaigns/:campaignId/scene-folders', sceneFoldersRouter);
 apiRouter.use('/campaigns/:campaignId/tokens', tokensRouter);
 apiRouter.use('/campaigns/:campaignId/handouts', handoutsRouter);
+apiRouter.use('/campaigns/:campaignId/handout-folders', handoutFoldersRouter);
 apiRouter.use('/campaigns/:campaignId/chat', chatRouter);
 apiRouter.use('/campaigns/:campaignId/combat', combatRouter);
 apiRouter.use('/characters', charactersRouter);
+apiRouter.use('/asset-folders', assetFoldersRouter);
 apiRouter.use('/assets', assetsRouter);

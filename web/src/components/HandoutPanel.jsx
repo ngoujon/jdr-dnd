@@ -3,10 +3,19 @@ import { api } from '../lib/api.js';
 import { useTable } from '../lib/store.js';
 import { Modal, RichText, useToast, useConfirm, LazyInput } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
+import { FolderGroups } from './FolderGroups.jsx';
 
-/** Documents distribuables : notes, images, indices. Le MJ choisit qui les voit. */
+const DRAG_TYPE = 'application/x-handout';
+
+/** Documents distribuables : notes, images, indices. Le MJ choisit qui les voit
+ *  et les range en dossiers (invisibles pour les joueurs). */
 export function HandoutPanel() {
   const handouts = useTable((s) => s.handouts);
+  const folders = useTable((s) => s.handoutFolders);
+  const createHandoutFolder = useTable((s) => s.createHandoutFolder);
+  const renameHandoutFolder = useTable((s) => s.renameHandoutFolder);
+  const deleteHandoutFolder = useTable((s) => s.deleteHandoutFolder);
+  const moveHandoutToFolder = useTable((s) => s.moveHandoutToFolder);
   const campaign = useTable((s) => s.campaign);
   const campaignId = useTable((s) => s.campaignId);
   const isGM = useTable((s) => s.isGM);
@@ -56,19 +65,60 @@ export function HandoutPanel() {
   return (
     <div className="handout-panel scroll">
       {confirmNode}
-      <div className="row" style={{ padding: '0 10px 8px' }}>
-        <h4 className="panel-title">Documents</h4>
-        <span className="spacer" />
-        {isGM ? (
-          <button type="button" className="btn xs primary" onClick={create}>
-            + Nouveau
-          </button>
-        ) : null}
-      </div>
+      {isGM ? (
+        <FolderGroups
+          title={<h4 className="panel-title">Documents</h4>}
+          actions={
+            <button type="button" className="btn xs primary" onClick={create}>
+              + Nouveau
+            </button>
+          }
+          folders={folders}
+          items={handouts}
+          folderOf={(h) => h.folderId}
+          dragType={DRAG_TYPE}
+          onMove={moveHandoutToFolder}
+          onCreate={createHandoutFolder}
+          onRename={renameHandoutFolder}
+          onDelete={(folder) => deleteHandoutFolder(folder.id)}
+          storageKey={`handout-folders-collapsed:${campaignId}`}
+          itemLabel="document(s)"
+          emptyHint="Glissez un document ici."
+          renderList={renderList}
+        />
+      ) : (
+        <>
+          <div className="row" style={{ padding: '0 10px 8px' }}>
+            <h4 className="panel-title">Documents</h4>
+          </div>
+          {renderList(handouts)}
+        </>
+      )}
 
+      <Modal open={Boolean(opened)} title={opened?.title || ''} onClose={() => setOpenId(null)} size="lg">
+        {opened?.imageUrl ? <img className="handout-image" src={opened.imageUrl} alt={opened.title} /> : null}
+        <RichText text={opened?.content || ''} />
+      </Modal>
+      {renderEditor()}
+    </div>
+  );
+
+  function renderList(list) {
+    return (
       <ul className="handout-list">
-        {handouts.map((handout) => (
-          <li key={handout.id}>
+        {list.map((handout) => (
+          <li
+            key={handout.id}
+            draggable={isGM}
+            onDragStart={
+              isGM
+                ? (e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, handout.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }
+                : undefined
+            }
+          >
             <button type="button" className="handout-btn" onClick={() => setOpenId(handout.id)}>
               {handout.imageUrl ? (
                 <span className="handout-thumb" style={{ background: `center/cover url(${handout.imageUrl})` }} />
@@ -114,12 +164,12 @@ export function HandoutPanel() {
           </li>
         ) : null}
       </ul>
+    );
+  }
 
-      <Modal open={Boolean(opened)} title={opened?.title || ''} onClose={() => setOpenId(null)} size="lg">
-        {opened?.imageUrl ? <img className="handout-image" src={opened.imageUrl} alt={opened.title} /> : null}
-        <RichText text={opened?.content || ''} />
-      </Modal>
-
+  function renderEditor() {
+    return (
+      <>
       <Modal
         open={Boolean(editing)}
         title="Modifier le document"
@@ -205,6 +255,7 @@ export function HandoutPanel() {
           }}
         />
       </Modal>
-    </div>
-  );
+      </>
+    );
+  }
 }
