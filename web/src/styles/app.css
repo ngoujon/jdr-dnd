@@ -620,7 +620,8 @@
   .map-reaction { animation: none; transform: translate(-50%, -100%); }
 }
 
-.reaction-bar { gap: 2px; }
+/* Beaucoup d'emojis : la barre passe sur plusieurs lignes et defile au besoin. */
+.reaction-bar { gap: 2px; flex-wrap: wrap; max-width: min(640px, calc(100vw - 32px)); max-height: 190px; overflow-y: auto; }
 .reaction-bar .reaction-emoji {
   font-size: 20px;
   line-height: 1;

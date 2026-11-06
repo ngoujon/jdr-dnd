@@ -8,7 +8,14 @@ import { attachVoice } from './voice.js';
 import { attachSound, playCritSound } from './sound.js';
 
 /** Emojis de réaction autorisés : même liste que REACTIONS dans web/src/pages/Table.jsx. */
-const REACTION_EMOJIS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
+const REACTION_EMOJIS = [
+  '👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤',
+  '😀', '😅', '🤣', '😊', '😍', '😎', '🤩', '😏', '😬', '😳', '🥺', '😢', '😭', '😤', '🤯', '🥶',
+  '🥵', '🤢', '🤮', '😵', '🫣', '🤫', '🤐', '😴', '🙄', '😇', '😈', '🤡',
+  '👏', '🙌', '👋', '🤝', '✌️', '🤞', '👀', '🫡', '🤷', '🙈',
+  '⚔️', '🗡️', '🛡️', '🏹', '🪄', '🔮', '📜', '🗝️', '💰', '💎', '🍺', '🍖', '🧪', '🎲', '🐉', '👑',
+  '☠️', '👻', '🧟', '🕷️', '🐺', '⚡', '❄️', '💥', '✨', '🌙', '⭐', '💯', '✅', '❌', '⚠️', '🏃',
+];
 
 /** Presence en memoire : campaignId -> Map(userId -> { user, sockets:Set }) */
 const presence = new Map();

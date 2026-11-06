@@ -32,7 +32,19 @@ const GM_TOOLS = [
 ];
 
 /** Même liste que REACTION_EMOJIS dans server/src/realtime/index.js. */
-const REACTIONS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
+/** Meme liste que REACTION_EMOJIS dans server/src/realtime/index.js. */
+const REACTIONS = [
+  // Les classiques
+  '👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤',
+  // Humeurs
+  '😀', '😅', '🤣', '😊', '😍', '😎', '🤩', '😏', '😬', '😳', '🥺', '😢', '😭', '😤', '🤯', '🥶',
+  '🥵', '🤢', '🤮', '😵', '🫣', '🤫', '🤐', '😴', '🙄', '😇', '😈', '🤡',
+  // Gestes
+  '👏', '🙌', '👋', '🤝', '✌️', '🤞', '👀', '🫡', '🤷', '🙈',
+  // Aventure
+  '⚔️', '🗡️', '🛡️', '🏹', '🪄', '🔮', '📜', '🗝️', '💰', '💎', '🍺', '🍖', '🧪', '🎲', '🐉', '👑',
+  '☠️', '👻', '🧟', '🕷️', '🐺', '⚡', '❄️', '💥', '✨', '🌙', '⭐', '💯', '✅', '❌', '⚠️', '🏃',
+];
 
 /** Apparence du pion du MJ : couronne doree, reconnaissable d'un coup d'oeil. */
 const GM_PAWN_STYLE = {
