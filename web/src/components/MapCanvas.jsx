@@ -463,6 +463,9 @@ export function MapCanvas({
     const below = [];
     const above = [];
     for (const token of tokens) {
+      // Le pion du MJ n'est jamais affiche aux joueurs : il ne sert qu'a placer
+      // la voix du MJ pour le chat de proximite.
+      if (token.isGmPawn) continue;
       const owned = isTokenOwned(token);
       const fogged = isTokenFogged(token);
       if (!owned && fogged) continue;

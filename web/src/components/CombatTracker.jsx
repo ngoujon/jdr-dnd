@@ -53,7 +53,8 @@ export function CombatTracker() {
   const addFromTokens = () => {
     const existing = new Set(entries.map((e) => e.tokenId).filter(Boolean));
     const additions = tokens
-      .filter((t) => t.layer === 'TOKEN' && !existing.has(t.id))
+      // Le pion du MJ n'est pas un combattant.
+      .filter((t) => t.layer === 'TOKEN' && !t.isGmPawn && !existing.has(t.id))
       .map((token) => {
         const character = characters.find((c) => c.id === token.characterId);
         const bonus = character?.derived?.initiative ?? 0;
