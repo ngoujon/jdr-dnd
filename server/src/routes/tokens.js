@@ -206,11 +206,13 @@ tokensRouter.post(
     const tokens = await prisma.token.findMany({
       where: { id: { in: ids }, scene: { campaignId: req.campaign.id } },
     });
+    // Tous les droits sont verifies avant d'ecrire : un groupe refuse ne doit
+    // pas laisser une partie des pions deplaces.
+    for (const token of tokens) await assertCanEdit(req, token);
     const updated = [];
     for (const move of moves) {
       const token = tokens.find((t) => t.id === move.id);
       if (!token) continue;
-      await assertCanEdit(req, token);
       updated.push(
         await prisma.token.update({
           where: { id: token.id },

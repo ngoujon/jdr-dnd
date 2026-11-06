@@ -357,7 +357,10 @@ export function MapCanvas({
     onSelectionChange(nextSelection);
 
     const start = toScene(e.clientX, e.clientY);
-    const moving = tokens.filter((t) => nextSelection.includes(t.id));
+    // Un joueur peut selectionner une zone, mais ne deplace que ses propres
+    // pions : les autres pions selectionnes restent en place. Le MJ deplace
+    // tout le groupe.
+    const moving = tokens.filter((t) => nextSelection.includes(t.id) && canMoveToken(t));
     dragState.current = {
       start,
       origins: moving.map((t) => ({ id: t.id, x: t.x, y: t.y, width: t.width })),
