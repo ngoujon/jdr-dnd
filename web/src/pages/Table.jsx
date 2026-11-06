@@ -15,6 +15,35 @@ import { WhisperDock } from '../components/WhisperDock.jsx';
 import { VoicePanel } from '../components/VoicePanel.jsx';
 import { SoundPanel, SoundUnlock } from '../components/SoundPanel.jsx';
 import { listenSound } from '../lib/sound.js';
+import { listenVoice, useVoice, setGmBroadcast } from '../lib/voice.js';
+
+/**
+ * Interrupteur du MJ, dans la barre d'outils : sa voix porte sur toute la
+ * carte, ou seulement autour de son pion. Ne change que la voix du MJ.
+ */
+function GmVoiceSwitch({ campaignId }) {
+  const gmBroadcast = useVoice((s) => s.gmBroadcast);
+  return (
+    <label
+      className={`voice-switch ${gmBroadcast ? 'on' : ''}`}
+      title={
+        gmBroadcast
+          ? 'Votre voix porte sur toute la carte : tout le monde vous entend au même volume. Cliquez pour ne parler qu’autour de votre pion.'
+          : 'Votre voix ne porte qu’autour de votre pion MJ : seuls les joueurs proches vous entendent. Cliquez pour parler à toute la carte.'
+      }
+    >
+      <input
+        type="checkbox"
+        checked={gmBroadcast}
+        onChange={(e) => setGmBroadcast(campaignId, e.target.checked)}
+      />
+      <span className="voice-switch-track" aria-hidden="true">
+        <span className="voice-switch-thumb" />
+      </span>
+      <span>{gmBroadcast ? '📢 Toute la carte' : '📍 Proximité'}</span>
+    </label>
+  );
+}
 import { Tabs, Spinner, useToast, Avatar } from '../components/Ui.jsx';
 import { IconPanelOpen } from '../components/Icons.jsx';
 
@@ -98,9 +127,13 @@ export function TablePage() {
     return () => reset();
   }, [campaignId, open, reset]);
 
-  // Musique et effets du MJ : chacun les entend, MJ compris.
+  // Musique et effets du MJ : chacun les entend, MJ compris. L'etat des salons
+  // vocaux est suivi des l'ouverture (interrupteur de voix du MJ dans la barre).
   useEffect(() => {
-    if (!loading && campaign) listenSound(campaignId);
+    if (!loading && campaign) {
+      listenSound(campaignId);
+      listenVoice(campaignId);
+    }
   }, [campaignId, loading, Boolean(campaign)]);
 
   /** Raccourcis clavier façon logiciels de dessin. */
@@ -424,6 +457,7 @@ export function TablePage() {
                 >
                   {tokens.some((t) => t.isGmPawn) ? 'Repositionner mon pion MJ' : 'Poser mon pion MJ'}
                 </button>
+                <GmVoiceSwitch campaignId={campaignId} />
               </div>
             ) : null}
             {myCharacters.length ? (
