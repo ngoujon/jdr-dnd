@@ -14,8 +14,10 @@ import {
   setSfxVolume,
 } from '../lib/sound.js';
 import { FileDrop, useToast } from './Ui.jsx';
+import { FolderGroups } from './FolderGroups.jsx';
 
 const AUDIO_ACCEPT = 'audio/mpeg,audio/ogg,audio/wav';
+const SOUND_DRAG = 'application/x-sound';
 
 /** Onglet « Son » du MJ : musique d'ambiance, effets, sons des jets critiques. */
 export function SoundPanel() {
@@ -33,6 +35,18 @@ export function SoundPanel() {
     return assets.filter((a) => a.kind === 'AUDIO' && (!needle || a.name.toLowerCase().includes(needle)));
   }, [assets, query]);
   const allSounds = useMemo(() => assets.filter((a) => a.kind === 'AUDIO'), [assets]);
+
+  // Rangement des sons en dossiers, comme les pions et les cartes.
+  const assetFolders = useTable((s) => s.assetFolders);
+  const createAssetFolder = useTable((s) => s.createAssetFolder);
+  const renameAssetFolder = useTable((s) => s.renameAssetFolder);
+  const deleteAssetFolder = useTable((s) => s.deleteAssetFolder);
+  const moveAssetToFolder = useTable((s) => s.moveAssetToFolder);
+  const soundFolders = useMemo(() => assetFolders.folders.filter((f) => f.scope === 'AUDIO'), [assetFolders.folders]);
+  const placement = useMemo(() => {
+    const ids = new Set(soundFolders.map((f) => f.id));
+    return new Map(assetFolders.entries.filter((e) => ids.has(e.folderId)).map((e) => [e.assetId, e.folderId]));
+  }, [assetFolders.entries, soundFolders]);
 
   const upload = async (files) => {
     if (!files?.length) return;
@@ -109,10 +123,43 @@ export function SoundPanel() {
             <input type="range" min="0" max="1" step="0.05" value={sfxVolume} onChange={(e) => setGmSfxVolume(Number(e.target.value))} />
           </label>
         </div>
-        {sounds.length ? (
+        <FolderGroups
+          folders={soundFolders}
+          items={sounds}
+          folderOf={(asset) => placement.get(asset.id) ?? null}
+          dragType={SOUND_DRAG}
+          onMove={(assetId, folderId) => moveAssetToFolder(assetId, 'AUDIO', folderId)}
+          onCreate={(name) => createAssetFolder('AUDIO', name)}
+          onRename={renameAssetFolder}
+          onDelete={(folder) => deleteAssetFolder(folder.id)}
+          storageKey="asset-folders-collapsed:AUDIO"
+          itemLabel="son(s)"
+          emptyHint="Glissez un son ici."
+          renderList={renderSounds}
+        />
+        {!sounds.length ? <p className="faint sound-hint">Ajoutez des fichiers audio pour les jouer à la table.</p> : null}
+      </section>
+
+      {renderCrit()}
+
+      <ListenerVolumes />
+    </div>
+  );
+
+  function renderSounds(list) {
+    if (!list.length) return null;
+    return (
           <ul className="sound-list">
-            {sounds.map((asset) => (
-              <li key={asset.id} className={music?.url === asset.url ? 'playing' : ''}>
+            {list.map((asset) => (
+              <li
+                key={asset.id}
+                className={music?.url === asset.url ? 'playing' : ''}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(SOUND_DRAG, asset.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+              >
                 <span className="ellipsis sound-name" title={asset.name}>
                   {asset.name}
                 </span>
@@ -145,11 +192,11 @@ export function SoundPanel() {
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="faint sound-hint">Ajoutez des fichiers audio pour les jouer à la table.</p>
-        )}
-      </section>
+    );
+  }
 
+  function renderCrit() {
+    return (
       <section className="sound-block">
         <h5 className="sound-title">Jets critiques</h5>
         <p className="faint sound-hint">Joué chez tout le monde sur un 20 ou un 1 naturel au d20. Un jet secret ne s'entend que chez ceux qui le voient.</p>
@@ -185,10 +232,8 @@ export function SoundPanel() {
           </div>
         ))}
       </section>
-
-      <ListenerVolumes />
-    </div>
-  );
+    );
+  }
 }
 
 /** Reglages personnels : chacun regle la musique et les effets chez lui. */

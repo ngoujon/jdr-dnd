@@ -1062,6 +1062,10 @@
 .sound-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .sound-list li { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--ink-850); }
 .sound-list li.playing { border-color: var(--brass); }
+.sound-list li[draggable='true'] { cursor: grab; }
+.sound-block .folder-groups-bar { padding: 0; }
+.sound-block .scene-tree { padding: 0; }
+.scene-folder > .folder-body > .sound-list { padding: 0 6px 6px 14px; }
 .sound-name { font-size: 12.5px; }
 .sound-actions { gap: 4px; flex-wrap: wrap; }
 .sound-unlock {

@@ -13,7 +13,7 @@ import { emitToUser } from '../realtime/hub.js';
 export const assetFoldersRouter = Router();
 assetFoldersRouter.use(requireAuth);
 
-const SCOPES = ['TOKEN', 'MAP'];
+const SCOPES = ['TOKEN', 'MAP', 'AUDIO'];
 
 const folderSchema = z.object({
   name: z.string().trim().min(1).max(60),

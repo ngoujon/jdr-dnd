@@ -356,6 +356,7 @@ enum FolderScope {
   HANDOUT
   TOKEN
   MAP
+  AUDIO
 }
 
 /// Dossier de rangement. Les dossiers de documents appartiennent a une
