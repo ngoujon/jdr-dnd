@@ -195,6 +195,9 @@ model Token {
   auraColor      String  @default("#c0873f")
   /// Rayon de lumiere emis par le pion, dans l'unite de la scene
   lightRadius    Float   @default(0)
+  /// Pion qui represente le MJ lui-meme sur la carte (un par scene). Sert de
+  /// position au MJ pour le chat vocal de proximite.
+  isGmPawn       Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

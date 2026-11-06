@@ -42,6 +42,7 @@ const tokenSchema = z.object({
   auraRadius: z.number().min(0).max(500).optional(),
   auraColor: z.string().max(20).optional(),
   lightRadius: z.number().min(0).max(500).optional(),
+  isGmPawn: z.boolean().optional(),
 });
 
 /** Un joueur ne peut manipuler que les pions qu'il possede (ou lies a son perso). */
@@ -79,6 +80,22 @@ tokensRouter.post(
       where: { id: data.sceneId, campaignId: req.campaign.id },
     });
     if (!scene) throw notFound('Scène introuvable');
+    if (data.isGmPawn) {
+      if (!req.isGM) throw forbidden('Seul le MJ a un pion de MJ');
+      // Un seul pion de MJ par scene : un nouveau clic le ramene au point demande.
+      const existing = await prisma.token.findFirst({ where: { sceneId: scene.id, isGmPawn: true } });
+      if (existing) {
+        const moved = await prisma.token.update({
+          where: { id: existing.id },
+          data: { x: data.x ?? existing.x, y: data.y ?? existing.y },
+        });
+        await broadcastToken(req.campaign, 'token:updated', moved);
+        return res.json({ token: moved, repositioned: true });
+      }
+      data.ownerId = req.user.id;
+      data.characterId = null;
+      data.layer = 'TOKEN';
+    }
     if (!req.isGM) {
       // Un joueur ne peut deposer qu'un pion de son propre personnage.
       if (!data.characterId) throw forbidden('Seul le MJ peut créer des pions libres');
@@ -132,7 +149,8 @@ tokensRouter.patch(
   asyncHandler(async (req, res) => {
     const existing = await loadToken(req);
     await assertCanEdit(req, existing);
-    let data = parseBody(tokenSchema, req.body);
+    // Le role « pion du MJ » se donne a la creation, jamais apres coup.
+    let { isGmPawn: _pawn, ...data } = parseBody(tokenSchema, req.body);
     if (!req.isGM) {
       // Les joueurs ne changent ni la visibilite, ni le verrou, ni le calque.
       const { visible, locked, layer, ownerId, hpLog, ...allowed } = data;

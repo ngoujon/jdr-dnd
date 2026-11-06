@@ -31,6 +31,15 @@ const GM_TOOLS = [
 /** Même liste que REACTION_EMOJIS dans server/src/realtime/index.js. */
 const REACTIONS = ['👍', '👎', '😂', '😮', '😱', '😡', '❤️', '🎉', '💀', '🤔', '🙏', '💪', '🔥', '❓', '❗', '💤'];
 
+/** Apparence du pion du MJ : couronne doree, reconnaissable d'un coup d'oeil. */
+const GM_PAWN_STYLE = {
+  shape: 'circle',
+  fill: 'linear-gradient(160deg, #6b4a1f, #2a1d0c)',
+  ring: '#e0a75c',
+  glyph: '♛',
+  glyphColor: '#f3d9a4',
+};
+
 const BRUSH_COLORS =['#e0a75c', '#d0574c', '#57a866', '#4a6fbd', '#b4a3f0', '#ede0c8'];
 
 export function TablePage() {
@@ -365,6 +374,38 @@ export function TablePage() {
 
             <span className="spacer" />
 
+            {isGM ? (
+              <div className="quick-drop">
+                <button
+                  type="button"
+                  className="btn xs"
+                  title="Votre pion de MJ : votre position pour le chat vocal de proximité"
+                  onClick={async () => {
+                    if (!scene) return toast('Aucune scène active', 'error');
+                    const scalePx = scene.scalePx || 70;
+                    const x = Math.round((scene.width - scalePx) / 2);
+                    const y = Math.round((scene.height - scalePx) / 2);
+                    try {
+                      await createToken({
+                        name: 'MJ',
+                        isGmPawn: true,
+                        style: GM_PAWN_STYLE,
+                        x,
+                        y,
+                        width: scalePx,
+                        height: scalePx,
+                        showHealthBar: false,
+                      });
+                      viewRef.current?.centerOn?.(x, y);
+                    } catch (err) {
+                      toast(err.message, 'error');
+                    }
+                  }}
+                >
+                  {tokens.some((t) => t.isGmPawn) ? 'Repositionner mon pion MJ' : 'Poser mon pion MJ'}
+                </button>
+              </div>
+            ) : null}
             {myCharacters.length ? (
               <div className="quick-drop">
                 {myCharacters.map((character) => {
