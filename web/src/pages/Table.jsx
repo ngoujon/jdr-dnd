@@ -100,6 +100,7 @@ export function TablePage() {
   const tokens = useTable((s) => s.tokens);
   const createToken = useTable((s) => s.createToken);
   const deleteToken = useTable((s) => s.deleteToken);
+  const patchToken = useTable((s) => s.patchToken);
   const updateDrawings = useTable((s) => s.updateDrawings);
   const duplicateTokens = useTable((s) => s.duplicateTokens);
   const react = useTable((s) => s.react);
@@ -457,6 +458,31 @@ export function TablePage() {
                 >
                   {tokens.some((t) => t.isGmPawn) ? 'Repositionner mon pion MJ' : 'Poser mon pion MJ'}
                 </button>
+                {(() => {
+                  const pawn = tokens.find((t) => t.isGmPawn);
+                  if (!pawn) return null;
+                  return (
+                    <button
+                      type="button"
+                      className={`btn xs ${pawn.visible ? '' : 'ghost'}`}
+                      aria-pressed={pawn.visible}
+                      title={
+                        pawn.visible
+                          ? 'Les joueurs voient votre pion MJ sur la carte. Cliquez pour le cacher.'
+                          : 'Votre pion MJ est caché aux joueurs (il place seulement votre voix). Cliquez pour le montrer.'
+                      }
+                      onClick={async () => {
+                        try {
+                          await patchToken(pawn.id, { visible: !pawn.visible });
+                        } catch (err) {
+                          toast(err.message, 'error');
+                        }
+                      }}
+                    >
+                      {pawn.visible ? '👁 Visible des joueurs' : '🙈 Caché aux joueurs'}
+                    </button>
+                  );
+                })()}
                 <GmVoiceSwitch campaignId={campaignId} />
               </div>
             ) : null}

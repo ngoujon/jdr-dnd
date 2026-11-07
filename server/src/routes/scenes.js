@@ -13,7 +13,8 @@ scenesRouter.use(requireAuth, requireCampaignMember);
 /** Pions visibles par l'utilisateur, debarrasses de ce qui est reserve au MJ. */
 export const visibleTokens = async (tokens, { isGM, gmId }) => {
   if (isGM) return tokens;
-  const shown = tokens.filter((t) => t.visible && t.layer !== 'GM');
+  // Le pion du MJ, meme cache, sert au chat de proximite (voir broadcastToken).
+  const shown = tokens.filter((t) => (t.visible || t.isGmPawn) && t.layer !== 'GM');
   const controlled = await playerControlledIds(shown, gmId);
   return shown.map((t) => sanitizeTokenForPlayer(t, controlled.has(t.id)));
 };

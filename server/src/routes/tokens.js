@@ -122,6 +122,9 @@ tokensRouter.post(
       data.ownerId = req.user.id;
       data.characterId = null;
       data.layer = 'TOKEN';
+      // Cache aux joueurs par defaut ; le MJ peut le montrer d'un clic.
+      data.visible = data.visible ?? false;
+      data.style = { ...(data.style || {}), visibilityManaged: true };
       // Sous tous les autres pions : il ne doit jamais cacher celui d'un joueur.
       const minZ = await prisma.token.aggregate({ where: { sceneId: scene.id }, _min: { zIndex: true } });
       data.zIndex = (minZ._min.zIndex ?? 0) - 1;
@@ -187,6 +190,8 @@ tokensRouter.patch(
       const { visible, locked, layer, ownerId, hpLog, ...allowed } = data;
       data = allowed;
     }
+    // Le repere de reprise du pion du MJ survit a un changement de style.
+    if (existing.isGmPawn && data.style) data.style = { ...data.style, visibilityManaged: true };
     // Une saisie directe des PV entre aussi dans l'historique du MJ.
     if (data.hp != null && existing.hp != null && data.hp !== existing.hp && !data.hpLog) {
       const log = Array.isArray(existing.hpLog) ? existing.hpLog : [];
@@ -194,7 +199,7 @@ tokensRouter.patch(
       data.hpLog = [...log, entry].slice(-100);
     }
     const token = await prisma.token.update({ where: { id: existing.id }, data });
-    const becameHidden = existing.visible && !token.visible;
+    const becameHidden = existing.visible && !token.visible && !token.isGmPawn;
     if (becameHidden) emitToCampaign(req.campaign.id, 'token:removed', { tokenId: token.id });
     // Le MJ devoile un pion cache : un ennemi apparait.
     if (!existing.visible && token.visible) announceEnemy(req, token);

@@ -90,8 +90,30 @@ async function convertMeterSpeeds() {
   if (converted) console.log(`[post-push] ${converted} vitesse(s) saisie(s) en metres converties en pieds`);
 }
 
+/**
+ * Les pions de MJ poses avant l'option « visible / cache » n'etaient jamais
+ * montres aux joueurs : ils deviennent caches, comme les nouveaux. Le repere
+ * `style.visibilityManaged` (pose aussi a la creation) evite de rejouer la
+ * reprise sur un pion que le MJ a ensuite choisi de montrer.
+ */
+async function hideLegacyGmPawns() {
+  const pawns = await prisma.token.findMany({ where: { isGmPawn: true }, select: { id: true, style: true } });
+  let hidden = 0;
+  for (const pawn of pawns) {
+    const style = pawn.style && typeof pawn.style === 'object' ? pawn.style : {};
+    if (style.visibilityManaged) continue;
+    await prisma.token.update({
+      where: { id: pawn.id },
+      data: { visible: false, style: { ...style, visibilityManaged: true } },
+    });
+    hidden += 1;
+  }
+  if (hidden) console.log(`[post-push] ${hidden} pion(s) de MJ passe(s) en cache`);
+}
+
 try {
   await renameDetailsNotes();
+  await hideLegacyGmPawns();
   await alignTokenHpWithCharacters();
   await convertMeterSpeeds();
 } catch (error) {

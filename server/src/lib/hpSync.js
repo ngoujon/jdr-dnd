@@ -15,7 +15,9 @@ import { playerControlledIds, sanitizeTokenForPlayer } from './tokens.js';
  *  n'est pas controle par un joueur (et rien du tout s'il est cache). */
 export const broadcastToken = async (campaign, event, token) => {
   emitToGMs(campaign.id, event, { token });
-  if (!token.visible || token.layer === 'GM') return;
+  // Le pion du MJ part toujours chez les joueurs, meme cache : sa position
+  // regle le volume de la voix du MJ. Leur carte ne l'affiche que s'il est visible.
+  if ((!token.visible && !token.isGmPawn) || token.layer === 'GM') return;
   const controlled = await playerControlledIds([token], campaign.gmId);
   emitToPlayers(campaign.id, event, { token: sanitizeTokenForPlayer(token, controlled.has(token.id)) });
 };
