@@ -30,6 +30,7 @@ const sceneSchema = z.object({
   scaleUnits: z.number().min(0.1).max(1000).optional(),
   unitLabel: z.string().max(10).optional(),
   fogEnabled: z.boolean().optional(),
+  voiceProximity: z.boolean().optional(),
   fogReveals: z.array(z.any()).max(5000).optional(),
   drawings: z.array(z.any()).max(5000).optional(),
   order: z.number().int().min(0).max(999).optional(),

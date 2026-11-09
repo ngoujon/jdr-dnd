@@ -486,6 +486,28 @@
 .map-host.tool-ping { cursor: pointer; }
 .map-host.tool-fog-reveal, .map-host.tool-fog-hide { cursor: cell; }
 .map-host.empty-map { display: flex; align-items: center; justify-content: center; }
+/* Mise a l'echelle : on trace sur la carte, les pions ne captent plus le clic. */
+.map-host.calibrating { cursor: crosshair; }
+.map-host.calibrating .token { pointer-events: none; }
+.calibrate-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 8px 12px;
+  border: 1px solid var(--brass, #e0a75c);
+  border-radius: 10px;
+  background: rgba(10, 13, 18, 0.92);
+  color: var(--text, #ede0c8);
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  cursor: default;
+}
 
 .map-stage {
   position: absolute;

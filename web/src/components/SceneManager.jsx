@@ -4,6 +4,7 @@ import { useTable } from '../lib/store.js';
 import { Modal, useToast, useConfirm, LazyInput } from './Ui.jsx';
 import { AssetLibrary } from './AssetLibrary.jsx';
 import { useCollapsedFolders } from './FolderGroups.jsx';
+import { startCalibration } from '../lib/calibration.js';
 
 const DRAG_TYPE = 'application/x-scene';
 
@@ -471,6 +472,14 @@ export function SceneSettings() {
           Sert à convertir les distances : outil de mesure, portée de déplacement, taille de référence d'un pion.
           Les pions se placent librement, sans alignement.
         </p>
+        <button
+          type="button"
+          className="btn sm block"
+          onClick={startCalibration}
+          title="Tracez sur la carte un trait de longueur connue, puis indiquez-la en mètres"
+        >
+          📏 Mettre à l'échelle
+        </button>
       </div>
 
       <div className="grid-2">

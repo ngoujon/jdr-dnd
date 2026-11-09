@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth, useTable } from '../lib/store.js';
 import { TokenSprite } from './TokenSprite.jsx';
 import { feetToSceneUnits } from '../lib/dnd.js';
+import { useCalibration, stopCalibration, scaleFromMeasure } from '../lib/calibration.js';
+import { Modal, useToast } from './Ui.jsx';
 
 const MIN_SCALE = 0.12;
 const MAX_SCALE = 4;
@@ -36,6 +38,42 @@ export function MapCanvas({
   const ping = useTable((s) => s.ping);
   const updateFog = useTable((s) => s.updateFog);
   const updateDrawings = useTable((s) => s.updateDrawings);
+  const patchScene = useTable((s) => s.patchScene);
+  const toast = useToast();
+
+  // Mise a l'echelle (MJ) : le prochain trace sur la carte sert de segment de
+  // reference, puis une fenetre demande sa longueur reelle en metres.
+  const calibrating = useCalibration((s) => s.active) && isGM;
+  const [calibration, setCalibration] = useState(null); // { pixels, meters }
+  const calibratingRef = useRef(false);
+  calibratingRef.current = calibrating;
+
+  const cancelCalibration = () => {
+    stopCalibration();
+    setCalibration(null);
+    setMeasure(null);
+  };
+  useEffect(() => {
+    if (!calibrating) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') cancelCalibration();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [calibrating]);
+
+  const applyCalibration = async () => {
+    const meters = Number(String(calibration?.meters ?? '').replace(',', '.'));
+    if (!Number.isFinite(meters) || meters <= 0) return toast('Indiquez une distance en mètres', 'error');
+    const patch = scaleFromMeasure(calibration.pixels, meters, scene?.scalePx || 70);
+    try {
+      await patchScene(patch);
+      toast(`Échelle appliquée : ${patch.scalePx} px = ${String(patch.scaleUnits).replace('.', ',')} m`, 'success');
+      cancelCalibration();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
 
   const hostRef = useRef(null);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
@@ -198,14 +236,24 @@ export function MapCanvas({
       ping(point.x, point.y, isGM);
       return;
     }
-    if (tool === 'measure') {
+    if (tool === 'measure' || calibrating) {
       // Annule l'effacement programme par la mesure precedente, sinon il
       // ferait disparaitre celle-ci en plein trace.
       clearTimeout(measureTimer.current);
       setMeasure({ from: point, to: point });
-      const onMove = (ev) => setMeasure((m) => (m ? { ...m, to: toScene(ev.clientX, ev.clientY) } : m));
+      let last = point;
+      const onMove = (ev) => {
+        last = toScene(ev.clientX, ev.clientY);
+        setMeasure((m) => (m ? { ...m, to: last } : m));
+      };
       const onUp = () => {
-        measureTimer.current = setTimeout(() => setMeasure(null), 1500);
+        const pixels = Math.hypot(last.x - point.x, last.y - point.y);
+        if (calibratingRef.current && pixels >= 5) {
+          // Le segment reste affiche pendant que le MJ saisit sa longueur.
+          setCalibration({ pixels, meters: '' });
+        } else {
+          measureTimer.current = setTimeout(() => setMeasure(null), 1500);
+        }
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
       };
@@ -518,10 +566,61 @@ export function MapCanvas({
   return (
     <div
       ref={hostRef}
-      className={`map-host tool-${tool} ${panning ? 'panning' : ''}`}
+      className={`map-host tool-${tool} ${panning ? 'panning' : ''} ${calibrating ? 'calibrating' : ''}`}
       onPointerDown={onBackgroundPointerDown}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {calibrating && !calibration ? (
+        <div className="calibrate-banner" onPointerDown={(e) => e.stopPropagation()}>
+          <span>
+            📏 <strong>Mise à l'échelle</strong> : glissez d'un point à l'autre d'une distance connue (un mur, une pièce…).
+          </span>
+          <button type="button" className="btn xs ghost" onClick={cancelCalibration}>
+            Annuler
+          </button>
+        </div>
+      ) : null}
+      {/* Le portail de la fenetre remonte ses clics jusqu'a la carte : on les arrete. */}
+      <span onPointerDown={(e) => e.stopPropagation()}>
+      <Modal
+        open={Boolean(calibration)}
+        title="Mise à l'échelle"
+        size="sm"
+        onClose={cancelCalibration}
+        footer={
+          <>
+            <button type="button" className="btn ghost" onClick={cancelCalibration}>
+              Annuler
+            </button>
+            <button type="button" className="btn primary" onClick={applyCalibration}>
+              Appliquer
+            </button>
+          </>
+        }
+      >
+        {calibration ? (
+          <div className="field">
+            <label>Ce trait mesure combien de mètres en vrai ?</label>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="0.1"
+              inputMode="decimal"
+              autoFocus
+              value={calibration.meters}
+              onChange={(e) => setCalibration({ ...calibration, meters: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && applyCalibration()}
+              placeholder="ex. 6"
+            />
+            <p className="faint hint">
+              Toute la carte prend cette échelle : outil de mesure, portées, voix de proximité et taille des nouveaux
+              pions (une case de 1,5 m).
+            </p>
+          </div>
+        ) : null}
+      </Modal>
+      </span>
       <div
         className="map-stage"
         style={{

@@ -101,6 +101,8 @@ const mixFor = (peerId) => {
   const speaker = memberOf(peerId);
   if (!speaker || !me) return { gain: 1, pan: 0 };
   if (table.isGM) return { gain: 1, pan: 0 };
+  // Spatialisation coupee par le MJ pour cette scene : tout le monde s'entend pareil.
+  if (table.scene?.voiceProximity === false) return { gain: 1, pan: 0 };
   if (speaker.isGM && useVoice.getState().gmBroadcast) return { gain: 1, pan: 0 };
   const mine = positionOf(me.id, false, table);
   const theirs = positionOf(speaker.userId, speaker.isGM, table);

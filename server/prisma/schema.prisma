@@ -123,6 +123,8 @@ model Scene {
   unitLabel  String @default("m")
 
   fogEnabled Boolean @default(false)
+  /// Chat vocal : le volume suit la distance entre pions (sinon tout le monde s'entend pareil).
+  voiceProximity Boolean @default(true)
   /// Zones revelees : [{ type:'rect'|'circle'|'poly', ... }]
   fogReveals Json    @default("[]")
   /// Traits dessines par le MJ : [{ points:[], color, width, layer }]

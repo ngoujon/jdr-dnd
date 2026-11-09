@@ -44,6 +44,38 @@ function GmVoiceSwitch({ campaignId }) {
     </label>
   );
 }
+
+/**
+ * Interrupteur du MJ pour toute la table, memorise sur la scene : le volume
+ * des voix suit la distance entre pions, ou tout le monde s'entend pareil.
+ */
+function SceneVoiceSwitch() {
+  const scene = useTable((s) => s.scene);
+  const patchScene = useTable((s) => s.patchScene);
+  const toast = useToast();
+  if (!scene) return null;
+  const on = scene.voiceProximity !== false;
+  return (
+    <label
+      className={`voice-switch ${on ? 'on' : ''}`}
+      title={
+        on
+          ? 'Spatialisation active sur cette scène : chacun entend mieux les pions proches du sien. Cliquez pour que tout le monde s’entende au même volume.'
+          : 'Spatialisation coupée sur cette scène : tout le monde s’entend au même volume, où que soient les pions. Cliquez pour la réactiver.'
+      }
+    >
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => patchScene({ voiceProximity: e.target.checked }).catch((err) => toast(err.message, 'error'))}
+      />
+      <span className="voice-switch-track" aria-hidden="true">
+        <span className="voice-switch-thumb" />
+      </span>
+      <span>{on ? '🎧 Spatialisation' : '🔊 Tous s’entendent'}</span>
+    </label>
+  );
+}
 import { Tabs, Spinner, useToast, Avatar } from '../components/Ui.jsx';
 import { IconPanelOpen } from '../components/Icons.jsx';
 
@@ -484,6 +516,7 @@ export function TablePage() {
                   );
                 })()}
                 <GmVoiceSwitch campaignId={campaignId} />
+                <SceneVoiceSwitch />
               </div>
             ) : null}
             {myCharacters.length ? (
