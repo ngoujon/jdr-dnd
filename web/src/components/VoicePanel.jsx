@@ -7,11 +7,11 @@ import {
   leaveVoice,
   setVoiceMuted,
   setGmBroadcast,
-  setMicSensitivity,
+  setMicThreshold,
   setNoiseSuppression,
-  sensitivityToDb,
-  meterPosition,
-  levelToDb,
+  startMicTest,
+  stopMicTest,
+  levelToMeter,
   VOICE_FULL_METERS,
   VOICE_SILENT_METERS,
 } from '../lib/voice.js';
@@ -26,48 +26,65 @@ const ROOMS = [
 /** Reglages du micro propres a chaque personne : sensibilite et suppresseur de bruit. */
 function MicSettings() {
   const room = useVoice((s) => s.room);
-  const sensitivity = useVoice((s) => s.sensitivity);
+  const threshold = useVoice((s) => s.threshold);
   const noiseSuppression = useVoice((s) => s.noiseSuppression);
   const micLevel = useVoice((s) => s.micLevel);
   const micOpen = useVoice((s) => s.micOpen);
   const muted = useVoice((s) => s.muted);
-  const thresholdDb = sensitivityToDb(sensitivity);
-  const levelPct = meterPosition(levelToDb(micLevel)) * 100;
-  const thresholdPct = thresholdDb === null ? null : meterPosition(thresholdDb) * 100;
-  const sending = room && micOpen && !muted;
+  const testing = useVoice((s) => s.testing);
+  const live = room || testing;
+  const levelPct = live ? levelToMeter(micLevel) : 0;
+  const passing = live && micOpen;
+
+  // Quitter l'onglet arrete le test, pour ne pas laisser le micro allume.
+  useEffect(() => () => stopMicTest(), []);
+
+  let status = 'Lancez le test et parlez pour voir votre niveau.';
+  if (live) {
+    if (room && muted) status = 'Micro coupé : rien n’est envoyé.';
+    else if (passing) status = room ? '🟢 Votre voix est envoyée' : '🟢 Ceci passerait';
+    else status = '⚪ Coupé : sous le seuil';
+  }
 
   return (
     <div className="voice-gm card-soft voice-mic">
-      <strong style={{ fontSize: 12.5 }}>Mon micro</strong>
+      <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+        <strong style={{ fontSize: 12.5 }}>Mon micro</strong>
+        {room ? null : (
+          <button
+            type="button"
+            className={`btn xs ${testing ? 'danger' : 'primary'}`}
+            onClick={() => (testing ? stopMicTest() : startMicTest())}
+          >
+            {testing ? 'Arrêter le test' : '🎙️ Tester mon micro'}
+          </button>
+        )}
+      </div>
 
-      <label className="voice-mic-row">
+      <div className="voice-mic-row">
         <span className="row" style={{ justifyContent: 'space-between' }}>
           <span>Sensibilité</span>
-          <span className="faint">{sensitivity >= 100 ? 'Max — tout passe' : `${sensitivity} %`}</span>
+          <span className="faint">{threshold <= 0 ? 'Tout passe' : `Seuil ${threshold} %`}</span>
         </span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={sensitivity}
-          onChange={(e) => setMicSensitivity(Number(e.target.value))}
-        />
-        <span className="faint">
-          Baissez-la si le micro capte les bruits autour de vous : seule une voix assez forte passera.
-        </span>
-      </label>
-
-      {room ? (
-        <div className="voice-meter" title={sending ? 'Votre voix est envoyée' : 'Rien n’est envoyé'}>
-          <div className={`voice-meter-fill ${sending ? 'on' : ''}`} style={{ width: `${levelPct}%` }} />
-          {thresholdPct !== null ? <div className="voice-meter-mark" style={{ left: `${thresholdPct}%` }} /> : null}
+        <div className={`voice-meter ${live ? 'live' : ''}`}>
+          <div className="voice-meter-cut" style={{ width: `${threshold}%` }} />
+          <div className={`voice-meter-fill ${passing ? 'on' : ''}`} style={{ width: `${levelPct}%` }} />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={threshold}
+            aria-label="Seuil du micro"
+            onChange={(e) => setMicThreshold(Number(e.target.value))}
+          />
         </div>
-      ) : (
-        <p className="faint" style={{ margin: 0, fontSize: 11.5 }}>
-          Rejoignez un salon pour voir le niveau de votre micro.
-        </p>
-      )}
+        <span className="faint">{status}</span>
+        <span className="faint">
+          Parlez, puis glissez le curseur juste à gauche de votre voix : les bruits plus faibles (zone sombre)
+          ne passeront pas.
+        </span>
+      </div>
 
       <label className="switch-row">
         <input type="checkbox" checked={noiseSuppression} onChange={(e) => setNoiseSuppression(e.target.checked)} />

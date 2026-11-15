@@ -28,13 +28,20 @@ export const VOICE_SILENT_METERS = 18;
 /* --- Reglages du micro, propres a chaque personne (gardes dans le navigateur) --- */
 
 const MIC_SETTINGS_KEY = 'jdr.voice.mic';
-const MIC_DEFAULTS = { sensitivity: 100, noiseSuppression: false };
+const MIC_DEFAULTS = { threshold: 0, noiseSuppression: false };
+
+/*
+ * Le seuil se regle directement sur l'indicateur de niveau, comme dans Discord :
+ * 0..100 = position sur la barre (de -70 dB a 0 dB). Tout son a gauche du
+ * curseur est coupe, tout son a droite passe. 0 = aucun seuil, tout passe.
+ */
+const METER_MIN_DB = -70;
 
 const loadMicSettings = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(MIC_SETTINGS_KEY) || '{}');
     return {
-      sensitivity: Number.isFinite(saved.sensitivity) ? Math.max(0, Math.min(100, saved.sensitivity)) : MIC_DEFAULTS.sensitivity,
+      threshold: Number.isFinite(saved.threshold) ? Math.max(0, Math.min(100, saved.threshold)) : MIC_DEFAULTS.threshold,
       noiseSuppression: typeof saved.noiseSuppression === 'boolean' ? saved.noiseSuppression : MIC_DEFAULTS.noiseSuppression,
     };
   } catch {
@@ -43,23 +50,24 @@ const loadMicSettings = () => {
 };
 
 const saveMicSettings = () => {
-  const { sensitivity, noiseSuppression } = useVoice.getState();
+  const { threshold, noiseSuppression } = useVoice.getState();
   try {
-    localStorage.setItem(MIC_SETTINGS_KEY, JSON.stringify({ sensitivity, noiseSuppression }));
+    localStorage.setItem(MIC_SETTINGS_KEY, JSON.stringify({ threshold, noiseSuppression }));
   } catch {
     /* stockage indisponible : le reglage vaut pour cette visite */
   }
 };
 
-/**
- * Sensibilite (0..100) -> seuil en dB sous lequel le micro se coupe.
- * 100 = tout passe (pas de seuil) ; 0 = il faut parler fort.
- */
-export const sensitivityToDb = (sensitivity) => (sensitivity >= 100 ? null : -72 + (100 - sensitivity) * 0.52);
+/** Position sur la barre (0..100) -> amplitude du seuil (0 = pas de seuil). */
+const thresholdToAmplitude = (threshold) =>
+  threshold <= 0 ? 0 : 10 ** ((METER_MIN_DB + (threshold / 100) * -METER_MIN_DB) / 20);
 
-/** Niveau (amplitude 0..1 ou dB) -> position 0..1 sur l'indicateur (-80 dB .. 0 dB). */
-export const meterPosition = (db) => Math.max(0, Math.min(1, (db + 80) / 80));
-export const levelToDb = (level) => (level > 0 ? 20 * Math.log10(level) : -100);
+/** Niveau du micro (amplitude 0..1) -> position sur la barre (0..100). */
+export const levelToMeter = (level) => {
+  if (!(level > 0)) return 0;
+  const db = 20 * Math.log10(level);
+  return Math.max(0, Math.min(100, ((db - METER_MIN_DB) / -METER_MIN_DB) * 100));
+};
 
 export const useVoice = create(() => ({
   /** Salon rejoint ('1', '2') ou null. */
@@ -77,6 +85,8 @@ export const useVoice = create(() => ({
   /** Niveau du micro (amplitude 0..1) et micro « ouvert » (au-dessus du seuil). */
   micLevel: 0,
   micOpen: true,
+  /** Test du micro en cours (niveau visible sans etre dans un salon). */
+  testing: false,
 }));
 
 /*
@@ -334,9 +344,8 @@ const loadGateModule = () => {
 /** Applique sensibilite et filtre anti-bruit a la chaine en place. */
 const applyMicSettings = () => {
   if (!mic?.gate || !audioCtx) return;
-  const { sensitivity, noiseSuppression } = useVoice.getState();
-  const db = sensitivityToDb(sensitivity);
-  mic.gate.parameters.get('threshold').setValueAtTime(db === null ? 0 : 10 ** (db / 20), audioCtx.currentTime);
+  const { threshold, noiseSuppression } = useVoice.getState();
+  mic.gate.parameters.get('threshold').setValueAtTime(thresholdToAmplitude(threshold), audioCtx.currentTime);
   // Le suppresseur coupe aussi les grondements graves (ventilateur, clavier, souffle).
   mic.highpass.frequency.setTargetAtTime(noiseSuppression ? 110 : 10, audioCtx.currentTime, 0.02);
 };
@@ -363,7 +372,8 @@ async function openMic() {
   const dest = audioCtx.createMediaStreamDestination();
   source.connect(highpass).connect(gate).connect(dest);
   gate.port.onmessage = (e) => {
-    if (useVoice.getState().room) useVoice.setState({ micLevel: e.data.level, micOpen: e.data.open });
+    const { room, testing } = useVoice.getState();
+    if (room || testing) useVoice.setState({ micLevel: e.data.level, micOpen: e.data.open });
   };
   mic = { raw, source, highpass, gate, dest };
   localStream = dest.stream;
@@ -381,7 +391,39 @@ function closeMic() {
   }
   mic = null;
   localStream = null;
-  useVoice.setState({ micLevel: 0, micOpen: true });
+  useVoice.setState({ micLevel: 0, micOpen: true, testing: false });
+}
+
+/**
+ * Test du micro : allume le micro (sans rien envoyer hors d'un salon) pour
+ * voir son niveau en parlant et placer le curseur au bon endroit.
+ */
+export async function startMicTest() {
+  useVoice.setState({ error: null });
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Micro indisponible : il faut une connexion sécurisée (https).');
+    }
+    audioCtx ||= new AudioContext();
+    await audioCtx.resume();
+    if (!mic) await openMic();
+    if (!mic?.gate) throw new Error('Ce navigateur ne permet pas de tester le micro.');
+    useVoice.setState({ testing: true });
+  } catch (err) {
+    const message =
+      err?.name === 'NotAllowedError'
+        ? 'Accès au micro refusé. Autorisez-le dans le navigateur.'
+        : err?.message || 'Impossible de tester le micro';
+    useVoice.setState({ error: message, testing: false });
+    if (!useVoice.getState().room) closeMic();
+  }
+}
+
+/** Arrete le test ; hors d'un salon, le micro est eteint. */
+export function stopMicTest() {
+  if (!useVoice.getState().testing) return;
+  if (useVoice.getState().room) useVoice.setState({ testing: false });
+  else closeMic();
 }
 
 /** Reprend le micro avec les nouveaux reglages du navigateur, sans couper l'appel. */
@@ -410,9 +452,9 @@ async function recaptureMic() {
   for (const track of old.getTracks()) track.stop();
 }
 
-/** Sensibilite du micro (0..100) : en dessous du seuil, on n'envoie rien. */
-export function setMicSensitivity(sensitivity) {
-  useVoice.setState({ sensitivity: Math.max(0, Math.min(100, Math.round(sensitivity))) });
+/** Seuil du micro (0..100, position sur la barre) : en dessous, on n'envoie rien. */
+export function setMicThreshold(threshold) {
+  useVoice.setState({ threshold: Math.max(0, Math.min(100, Math.round(threshold))) });
   saveMicSettings();
   applyMicSettings();
 }

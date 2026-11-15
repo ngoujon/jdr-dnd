@@ -2,6 +2,15 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.12.1',
+    date: '2026-11-15',
+    changes: [
+      "Onglet Com. : bouton « Tester mon micro », même hors d'un salon",
+      "Onglet Com. : le curseur de sensibilité se pose sur la barre de niveau, pour voir en direct ce qui passe",
+      "Barre d'outils de la carte sur deux lignes sur les petits écrans, sans barre de défilement",
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-11-15',
     changes: [
