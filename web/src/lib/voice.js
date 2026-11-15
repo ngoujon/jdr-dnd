@@ -25,6 +25,42 @@ const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stu
 export const VOICE_FULL_METERS = 4.5;
 export const VOICE_SILENT_METERS = 18;
 
+/* --- Reglages du micro, propres a chaque personne (gardes dans le navigateur) --- */
+
+const MIC_SETTINGS_KEY = 'jdr.voice.mic';
+const MIC_DEFAULTS = { sensitivity: 100, noiseSuppression: false };
+
+const loadMicSettings = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MIC_SETTINGS_KEY) || '{}');
+    return {
+      sensitivity: Number.isFinite(saved.sensitivity) ? Math.max(0, Math.min(100, saved.sensitivity)) : MIC_DEFAULTS.sensitivity,
+      noiseSuppression: typeof saved.noiseSuppression === 'boolean' ? saved.noiseSuppression : MIC_DEFAULTS.noiseSuppression,
+    };
+  } catch {
+    return { ...MIC_DEFAULTS };
+  }
+};
+
+const saveMicSettings = () => {
+  const { sensitivity, noiseSuppression } = useVoice.getState();
+  try {
+    localStorage.setItem(MIC_SETTINGS_KEY, JSON.stringify({ sensitivity, noiseSuppression }));
+  } catch {
+    /* stockage indisponible : le reglage vaut pour cette visite */
+  }
+};
+
+/**
+ * Sensibilite (0..100) -> seuil en dB sous lequel le micro se coupe.
+ * 100 = tout passe (pas de seuil) ; 0 = il faut parler fort.
+ */
+export const sensitivityToDb = (sensitivity) => (sensitivity >= 100 ? null : -72 + (100 - sensitivity) * 0.52);
+
+/** Niveau (amplitude 0..1 ou dB) -> position 0..1 sur l'indicateur (-80 dB .. 0 dB). */
+export const meterPosition = (db) => Math.max(0, Math.min(1, (db + 80) / 80));
+export const levelToDb = (level) => (level > 0 ? 20 * Math.log10(level) : -100);
+
 export const useVoice = create(() => ({
   /** Salon rejoint ('1', '2') ou null. */
   room: null,
@@ -36,10 +72,69 @@ export const useVoice = create(() => ({
   gmBroadcast: true,
   /** peerId -> { gain (0..1), connected } pour l'affichage. */
   levels: {},
+  /** Reglages du micro (par personne). */
+  ...loadMicSettings(),
+  /** Niveau du micro (amplitude 0..1) et micro « ouvert » (au-dessus du seuil). */
+  micLevel: 0,
+  micOpen: true,
 }));
 
+/*
+ * Porte de bruit : coupe le micro quand le son reste sous le seuil, avec un
+ * petit maintien pour ne pas hacher la fin des mots. Tourne dans le fil audio
+ * (AudioWorklet), donc continue meme si l'onglet passe en arriere-plan.
+ */
+const GATE_WORKLET = `
+class MicGate extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [{ name: 'threshold', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }];
+  }
+  constructor() {
+    super();
+    this.gain = 1; this.open = 1; this.hold = 0; this.level = 0; this.blocks = 0;
+    this.attack = 1 - Math.exp(-1 / (0.005 * sampleRate));
+    this.release = 1 - Math.exp(-1 / (0.08 * sampleRate));
+  }
+  process(inputs, outputs, params) {
+    const input = inputs[0] || [];
+    const output = outputs[0] || [];
+    const ch = input[0];
+    const n = ch ? ch.length : 128;
+    let sum = 0;
+    if (ch) for (let i = 0; i < n; i++) sum += ch[i] * ch[i];
+    const rms = ch ? Math.sqrt(sum / n) : 0;
+    this.level = Math.max(rms, this.level * 0.94);
+    const threshold = params.threshold[0];
+    if (threshold <= 0 || rms >= threshold) { this.open = 1; this.hold = sampleRate * 0.35; }
+    else if (this.hold > 0) this.hold -= n;
+    else this.open = 0;
+    const coef = this.open > this.gain ? this.attack : this.release;
+    for (let c = 0; c < output.length; c++) {
+      const out = output[c];
+      const src = input[c] || ch;
+      let g = this.gain;
+      for (let i = 0; i < out.length; i++) {
+        g += (this.open - g) * coef;
+        out[i] = src ? src[i] * g : 0;
+      }
+      if (c === output.length - 1) this.gain = g;
+    }
+    if (++this.blocks >= 16) {
+      this.blocks = 0;
+      this.port.postMessage({ level: this.level, open: this.open === 1 });
+    }
+    return true;
+  }
+}
+registerProcessor('mic-gate', MicGate);
+`;
+
 let audioCtx = null;
+/** Flux envoye aux autres (sortie de la chaine micro). */
 let localStream = null;
+/** Chaine micro : { raw, source, highpass, gate, dest } ou { raw } sans traitement. */
+let mic = null;
+let gateModule = null;
 let campaignOfRoom = null;
 let unsubscribeTable = null;
 let gainFrame = 0;
@@ -212,6 +307,128 @@ const onSignal = async ({ from, data }) => {
   }
 };
 
+/* --- Micro : capture, suppresseur de bruit, sensibilite ------------------------ */
+
+const micConstraints = () => ({
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: useVoice.getState().noiseSuppression,
+    autoGainControl: true,
+  },
+});
+
+const loadGateModule = () => {
+  if (!gateModule) {
+    const url = URL.createObjectURL(new Blob([GATE_WORKLET], { type: 'application/javascript' }));
+    gateModule = audioCtx.audioWorklet
+      .addModule(url)
+      .catch((err) => {
+        gateModule = null;
+        throw err;
+      })
+      .finally(() => URL.revokeObjectURL(url));
+  }
+  return gateModule;
+};
+
+/** Applique sensibilite et filtre anti-bruit a la chaine en place. */
+const applyMicSettings = () => {
+  if (!mic?.gate || !audioCtx) return;
+  const { sensitivity, noiseSuppression } = useVoice.getState();
+  const db = sensitivityToDb(sensitivity);
+  mic.gate.parameters.get('threshold').setValueAtTime(db === null ? 0 : 10 ** (db / 20), audioCtx.currentTime);
+  // Le suppresseur coupe aussi les grondements graves (ventilateur, clavier, souffle).
+  mic.highpass.frequency.setTargetAtTime(noiseSuppression ? 110 : 10, audioCtx.currentTime, 0.02);
+};
+
+async function openMic() {
+  const raw = await navigator.mediaDevices.getUserMedia(micConstraints());
+  let gate = null;
+  try {
+    await loadGateModule();
+    gate = new AudioWorkletNode(audioCtx, 'mic-gate', { outputChannelCount: [1] });
+  } catch {
+    gate = null;
+  }
+  if (!gate) {
+    // Navigateur sans AudioWorklet : on envoie le micro tel quel.
+    mic = { raw };
+    localStream = raw;
+    return;
+  }
+  const source = audioCtx.createMediaStreamSource(raw);
+  const highpass = audioCtx.createBiquadFilter();
+  highpass.type = 'highpass';
+  highpass.frequency.value = 10;
+  const dest = audioCtx.createMediaStreamDestination();
+  source.connect(highpass).connect(gate).connect(dest);
+  gate.port.onmessage = (e) => {
+    if (useVoice.getState().room) useVoice.setState({ micLevel: e.data.level, micOpen: e.data.open });
+  };
+  mic = { raw, source, highpass, gate, dest };
+  localStream = dest.stream;
+  applyMicSettings();
+}
+
+function closeMic() {
+  for (const track of mic?.raw.getTracks() || []) track.stop();
+  try {
+    mic?.source?.disconnect();
+    mic?.gate?.disconnect();
+    if (mic?.gate) mic.gate.port.onmessage = null;
+  } catch {
+    /* deja debranche */
+  }
+  mic = null;
+  localStream = null;
+  useVoice.setState({ micLevel: 0, micOpen: true });
+}
+
+/** Reprend le micro avec les nouveaux reglages du navigateur, sans couper l'appel. */
+async function recaptureMic() {
+  if (!mic) return;
+  const raw = await navigator.mediaDevices.getUserMedia(micConstraints());
+  const old = mic.raw;
+  if (mic.gate) {
+    const source = audioCtx.createMediaStreamSource(raw);
+    source.connect(mic.highpass);
+    mic.source.disconnect();
+    mic.source = source;
+    mic.raw = raw;
+  } else {
+    // Sans chaine de traitement, on remplace la piste envoyee a chaque pair.
+    const track = raw.getAudioTracks()[0];
+    track.enabled = !useVoice.getState().muted;
+    for (const peer of peers.values()) {
+      for (const sender of peer.pc.getSenders()) {
+        if (sender.track?.kind === 'audio') sender.replaceTrack(track).catch(() => {});
+      }
+    }
+    mic = { raw };
+    localStream = raw;
+  }
+  for (const track of old.getTracks()) track.stop();
+}
+
+/** Sensibilite du micro (0..100) : en dessous du seuil, on n'envoie rien. */
+export function setMicSensitivity(sensitivity) {
+  useVoice.setState({ sensitivity: Math.max(0, Math.min(100, Math.round(sensitivity))) });
+  saveMicSettings();
+  applyMicSettings();
+}
+
+/** Suppresseur de bruit (celui du navigateur + filtre des graves). */
+export async function setNoiseSuppression(on) {
+  useVoice.setState({ noiseSuppression: !!on });
+  saveMicSettings();
+  applyMicSettings();
+  try {
+    await recaptureMic();
+  } catch {
+    useVoice.setState({ error: 'Impossible de relancer le micro avec ce réglage.' });
+  }
+}
+
 /* --- API --------------------------------------------------------------------- */
 
 /** Branche les evenements du salon vocal (une fois) et recupere l'etat des salons. */
@@ -250,11 +467,7 @@ export async function joinVoice(campaignId, room) {
     }
     audioCtx ||= new AudioContext();
     await audioCtx.resume();
-    if (!localStream) {
-      localStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-    }
+    if (!mic) await openMic();
     const { muted } = useVoice.getState();
     for (const track of localStream.getAudioTracks()) track.enabled = !muted;
     closeAllPeers();
@@ -283,8 +496,7 @@ export async function joinVoice(campaignId, room) {
 export function leaveVoice() {
   socket().emit('voice:leave');
   closeAllPeers();
-  for (const track of localStream?.getTracks() || []) track.stop();
-  localStream = null;
+  closeMic();
   campaignOfRoom = null;
   unsubscribeTable?.();
   unsubscribeTable = null;

@@ -57,6 +57,9 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
     writePref(SHEET_MODE_KEY, next);
   };
   const [expanded, setExpanded] = useState(false);
+  // Barre de jets : avantage/desavantage (pour le prochain d20) et jet secret.
+  const [rollAdvantage, setRollAdvantage] = useState('none');
+  const [rollSecret, setRollSecret] = useState(false);
 
   // Copie locale pour les fiches ouvertes hors d'une table (page Personnages) :
   // elles ne sont pas dans le store, sans quoi un portrait choisi n'apparaitrait
@@ -88,12 +91,28 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
       .catch((err) => toast(err.message, 'error'));
   };
 
-  const doRoll = (formula, label, advantage = 'none') =>
-    roll({ formula, label, advantage, characterName: character.name })
+  const doRoll = (formula, label, advantage = 'none') => {
+    const hasD20 = /\bd20\b/i.test(String(formula));
+    // Maj/Ctrl + clic l'emporte ; sinon on prend le choix de la barre de jets.
+    const mode = advantage !== 'none' ? advantage : hasD20 ? rollAdvantage : 'none';
+    // L'avantage vaut pour un seul jet de d20 : on revient ensuite a « Normal ».
+    if (hasD20 && rollAdvantage !== 'none') setRollAdvantage('none');
+    return roll({ formula, label, advantage: mode, secret: rollSecret, characterName: character.name })
       .then((res) => {
         if (res?.error) toast(res.error, 'error');
       })
       .catch((err) => toast(err.message, 'error'));
+  };
+
+  const rollOptions = (
+    <RollOptions
+      advantage={rollAdvantage}
+      setAdvantage={setRollAdvantage}
+      secret={rollSecret}
+      setSecret={setRollSecret}
+      isGM={isGM}
+    />
+  );
 
   const rollWithModifiers = (bonus, label) => (e) => {
     const advantage = e.shiftKey ? 'advantage' : e.ctrlKey || e.metaKey ? 'disadvantage' : 'none';
@@ -189,6 +208,7 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
         adjustHp={adjustHp}
         rollWithModifiers={rollWithModifiers}
         doRoll={doRoll}
+        rollOptions={rollOptions}
         save={save}
         onExpand={() => (docked ? setExpanded(true) : setMode('full'))}
         onClose={onClose}
@@ -430,6 +450,7 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
           </nav>
 
           <div className="sheet-body scroll">
+          {['main', 'skills', 'combat', 'spells'].includes(tab) ? rollOptions : null}
           {tab === 'main' ? (
             <MainTab
               character={character}
@@ -471,6 +492,41 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
   );
 }
 
+/* ---------------------------------------------------------- Barre de jets --- */
+
+/**
+ * Choix appliques aux jets lances depuis la fiche (competences, sauvegardes,
+ * attaques, sorts) : avantage ou desavantage pour le prochain d20, et jet secret.
+ */
+function RollOptions({ advantage, setAdvantage, secret, setSecret, isGM }) {
+  return (
+    <div className="row wrap dice-opts sheet-roll-opts">
+      <div className="seg" role="group" aria-label="Avantage ou désavantage">
+        {[
+          ['none', 'Normal'],
+          ['advantage', 'Avantage'],
+          ['disadvantage', 'Désavantage'],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={advantage === key ? 'active' : ''}
+            aria-pressed={advantage === key}
+            title={key === 'none' ? 'Un seul d20' : `2d20, on garde le ${key === 'advantage' ? 'meilleur' : 'moins bon'} — pour le prochain jet`}
+            onClick={() => setAdvantage(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <label className="check" title={isGM ? 'Vous seul verrez le résultat' : 'Seuls vous et le MJ verrez le résultat'}>
+        <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} />
+        Jet secret
+      </label>
+    </div>
+  );
+}
+
 /* -------------------------------------------------------- Fiche reduite --- */
 
 const SHEET_MODE_KEY = 'tabletop.sheetMode';
@@ -499,7 +555,7 @@ const writePref = (key, value) => {
  */
 function LightSheet({
   docked, character, derived, profs, editable, hpColor, hpState, hpRatio, hpDelta, setHpDelta,
-  adjustHp, rollWithModifiers, doRoll, save, onExpand, onClose,
+  adjustHp, rollWithModifiers, doRoll, rollOptions, save, onExpand, onClose,
 }) {
   const [side, setSideState] = useState(() => readPref(SHEET_SIDE_KEY, 'left'));
   const [section, setSection] = useState('skills');
@@ -573,6 +629,7 @@ function LightSheet({
       </header>
 
       <div className="sheet-light-body scroll">
+        {rollOptions}
         <section className="light-hp" style={{ '--hp-color': hpColor }}>
           <div className="row" style={{ gap: 6 }}>
             <strong className="mono light-hp-value">

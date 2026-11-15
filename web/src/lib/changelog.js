@@ -2,6 +2,16 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.12.0',
+    date: '2026-11-15',
+    changes: [
+      "Onglet Com. : chacun règle la sensibilité de son micro, avec un indicateur de niveau",
+      "Onglet Com. : suppresseur de bruit personnel, désactivé par défaut",
+      "Fiche : barre de jets avec Normal / Avantage / Désavantage pour les compétences, attaques et sorts",
+      "Fiche : case « Jet secret » pour lancer compétences, attaques et sorts en secret",
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-10-20',
     changes: [

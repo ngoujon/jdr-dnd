@@ -788,6 +788,9 @@
 }
 .die-btn:hover { background: var(--brass); border-color: var(--brass-dim); color: #241704; }
 .dice-opts { justify-content: space-between; }
+.sheet-roll-opts { gap: 8px; padding: 6px 8px; margin-bottom: 10px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--ink-850); }
+.sheet-roll-opts .seg.small button, .sheet-roll-opts .seg button { padding: 4px 9px; font-size: 11.5px; }
+.sheet-roll-opts .check { font-size: 12px; }
 
 .chat-form {
   display: flex;
@@ -1151,6 +1154,14 @@
 .voice-dot.gm { background: var(--brass); }
 .voice-level { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .voice-empty { margin: 0; padding: 0 8px 8px 14px; font-size: 12px; }
+.voice-mic { display: flex; flex-direction: column; gap: 10px; }
+.voice-mic-row { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.voice-mic-row input[type='range'] { width: 100%; accent-color: var(--brass); }
+.voice-mic-row .faint { font-size: 11.5px; }
+.voice-meter { position: relative; height: 8px; border-radius: 999px; background: var(--ink-900, #12151b); border: 1px solid var(--line-soft); overflow: hidden; }
+.voice-meter-fill { position: absolute; inset: 0 auto 0 0; background: var(--text-dim); opacity: 0.5; transition: width 60ms linear; }
+.voice-meter-fill.on { background: var(--success); opacity: 1; }
+.voice-meter-mark { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--brass-bright); }
 .voice-help { margin: 0 10px; font-size: 11.5px; line-height: 1.45; }
 .handout-list { list-style: none; margin: 0; padding: 0 10px; display: flex; flex-direction: column; gap: 6px; }
 .handout-list li { display: flex; align-items: center; gap: 6px; }
