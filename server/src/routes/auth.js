@@ -44,6 +44,7 @@ const prefsSchema = z
     chatHeight: z.number().int().min(60).max(2000).optional(),
     chatCollapsed: z.boolean().optional(),
     chatFontSize: z.number().int().min(10).max(22).optional(),
+    pmSound: z.boolean().optional(),
   })
   .strict();
 

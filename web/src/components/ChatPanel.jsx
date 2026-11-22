@@ -165,7 +165,8 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange, recipient, onRecipie
     // Chat replié : il se rouvre pour montrer le message (sans changer le réglage).
     setCollapsed(false);
     stickToBottom.current = true;
-    playPmChime();
+    // Le son se coupe dans le menu Son ; le bandeau, lui, reste toujours.
+    if (useAuth.getState().user?.prefs?.pmSound !== false) playPmChime();
   }, [messages, me]);
 
   // Onglet du navigateur : le titre clignote tant qu'un MP n'est pas lu.

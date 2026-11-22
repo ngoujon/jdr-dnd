@@ -8,6 +8,7 @@ export const CHANGELOG = [
       "Messages privés regroupés dans le chat du bas : plus de fenêtres séparées",
       "MP non lu : bandeau au-dessus du chat, son, compteur clignotant et titre d'onglet qui clignote",
       "Bouton « Répondre » sur le bandeau, ou clic sur un message privé pour répondre à son auteur",
+      "Menus Son et Com. : case pour couper le son des notifications, mémorisée sur votre compte",
     ],
   },
   {

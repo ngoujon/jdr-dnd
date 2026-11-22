@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { useTable } from '../lib/store.js';
+import { useTable, useAuth } from '../lib/store.js';
 import {
   useSound,
   gmPlayMusic,
@@ -324,6 +324,9 @@ export function SoundPanel() {
 /** Reglages personnels : chacun regle la musique et les effets chez lui. */
 export function ListenerVolumes() {
   const { musicVolume, sfxVolume, blocked } = useSound();
+  // Carillon des messages privés : actif par défaut, coupé par compte.
+  const pmSound = useAuth((s) => s.user?.prefs?.pmSound !== false);
+  const savePrefs = useAuth((s) => s.savePrefs);
   return (
     <section className="sound-block">
       <h5 className="sound-title">Mon volume</h5>
@@ -339,6 +342,10 @@ export function ListenerVolumes() {
       <label className="sound-slider">
         <span>Effets</span>
         <input type="range" min="0" max="1" step="0.05" value={sfxVolume} onChange={(e) => setSfxVolume(Number(e.target.value))} />
+      </label>
+      <label className="check" title="Le bandeau et le clignotement restent, seul le son est coupé">
+        <input type="checkbox" checked={pmSound} onChange={(e) => savePrefs({ pmSound: e.target.checked })} />
+        🔔 Son des notifications (messages privés)
       </label>
     </section>
   );
