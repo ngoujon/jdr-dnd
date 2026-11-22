@@ -296,7 +296,9 @@ export function TablePage() {
       characters.some((c) => c.id === selectedToken.characterId && c.ownerId === me?.id));
 
   return (
-    <div className="table-page">
+    // Fenêtre du pion ouverte : les conversations privées se décalent à sa
+    // gauche au lieu de la recouvrir.
+    <div className={`table-page ${selectedToken && canEditSelected ? 'with-inspector' : ''}`}>
       <TopBar title={campaign?.name} subtitle={scene?.name}>
         <div className="online-strip">
           {online.slice(0, 8).map((user) => (

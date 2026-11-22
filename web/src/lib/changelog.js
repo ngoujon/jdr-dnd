@@ -2,6 +2,14 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.13.1',
+    date: '2026-11-22',
+    changes: [
+      "Chat : boutons A− / A+ pour régler la taille du texte, mémorisée sur votre compte",
+      "La fenêtre d'un pion s'arrête au-dessus du chat et défile au lieu de passer dessous",
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-11-22',
     changes: [

@@ -5,6 +5,10 @@ import { useToast } from './Ui.jsx';
 const QUICK_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'];
 
 const DEFAULT_HEIGHT = 220;
+// Taille du texte des messages, en px : réglable par A− / A+.
+const DEFAULT_FONT = 13;
+const MIN_FONT = 10;
+const MAX_FONT = 22;
 const MIN_HEIGHT = 90;
 // Hauteur de la barre de saisie seule, quand le chat est replié.
 const COLLAPSED_HEIGHT = 74;
@@ -76,6 +80,7 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange, recipient, onRecipie
   const [height, setHeight] = useState(me?.prefs?.chatHeight || DEFAULT_HEIGHT);
   const [collapsed, setCollapsed] = useState(Boolean(me?.prefs?.chatCollapsed));
   const [dragging, setDragging] = useState(false);
+  const [fontSize, setFontSize] = useState(me?.prefs?.chatFontSize || DEFAULT_FONT);
   const rootRef = useRef(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
@@ -109,7 +114,7 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange, recipient, onRecipie
   useEffect(() => {
     const el = listRef.current;
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
-  }, [messages, shownHeight]);
+  }, [messages, shownHeight, fontSize]);
 
   // Clic sur « chuchoter » dans le panneau Groupe : le curseur va dans le
   // message. Pas quand on tape soi-même le pseudo dans le champ destinataire.
@@ -139,6 +144,13 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange, recipient, onRecipie
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+  };
+
+  const changeFont = (delta) => {
+    const next = Math.min(MAX_FONT, Math.max(MIN_FONT, fontSize + delta));
+    if (next === fontSize) return;
+    setFontSize(next);
+    savePrefs({ chatFontSize: next });
   };
 
   const toggleCollapsed = () => {
@@ -176,7 +188,7 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange, recipient, onRecipie
     <section
       ref={rootRef}
       className={`chat-dock ${collapsed ? 'collapsed' : ''} ${dragging ? 'dragging' : ''}`}
-      style={{ height: shownHeight }}
+      style={{ height: shownHeight, '--chat-fs': `${fontSize}px` }}
       aria-label="Chat de la table"
     >
       <div
@@ -224,6 +236,14 @@ export function ChatPanel({ speakingAs, onSpeakingAsChange, recipient, onRecipie
           Jet secret
         </label>
         <span className="spacer" />
+        <div className="seg small chat-font" role="group" aria-label="Taille du texte du chat">
+          <button type="button" onClick={() => changeFont(-1)} disabled={fontSize <= MIN_FONT} title="Réduire le texte du chat">
+            A−
+          </button>
+          <button type="button" onClick={() => changeFont(1)} disabled={fontSize >= MAX_FONT} title="Agrandir le texte du chat">
+            A+
+          </button>
+        </div>
         <button
           type="button"
           className="btn ghost xs chat-dock-toggle"
