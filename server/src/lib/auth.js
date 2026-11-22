@@ -26,7 +26,7 @@ export const requireAuth = async (req, _res, next) => {
     const payload = verifyToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, username: true, avatarUrl: true, isAdmin: true },
+      select: { id: true, email: true, username: true, avatarUrl: true, isAdmin: true, prefs: true },
     });
     if (!user) throw unauthorized('Compte introuvable');
     req.user = user;

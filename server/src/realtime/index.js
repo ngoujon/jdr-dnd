@@ -68,7 +68,8 @@ const persistMessage = (data) =>
 const dispatchMessage = (campaignId, message, { isGM }) => {
   if (message.whisperTo) {
     emitToUser(message.whisperTo, 'chat:message', { message });
-    if (message.userId) emitToUser(message.userId, 'chat:message', { message });
+    // Jet secret du MJ : il en est à la fois l'auteur et le destinataire.
+    if (message.userId && message.userId !== message.whisperTo) emitToUser(message.userId, 'chat:message', { message });
     if (!isGM) emitToGMs(campaignId, 'chat:message', { message });
   } else {
     emitToCampaign(campaignId, 'chat:message', { message });
@@ -183,13 +184,37 @@ export const attachRealtime = (httpServer) => {
 
     socket.on('chat:send', async (payload, ack) => {
       try {
-        const { campaignId, text, characterName } = payload || {};
+        const { campaignId, text, characterName, to } = payload || {};
         const access = await membershipOf(campaignId, user.id);
         if (!access) return ack?.({ error: 'Accès refusé' });
         const raw = String(text || '').trim().slice(0, 4000);
         if (!raw) return ack?.({ error: 'Message vide' });
 
         const authorName = characterName?.slice(0, 60) || user.username;
+
+        // Destinataire choisi dans le champ dédié du chat : le pseudo peut
+        // contenir des espaces, il ne passe donc pas par la commande /w.
+        const recipient = String(to || '').trim().slice(0, 60);
+        if (recipient) {
+          const target = await prisma.user.findFirst({
+            where: {
+              username: { equals: recipient, mode: 'insensitive' },
+              memberships: { some: { campaignId } },
+            },
+          });
+          if (!target) return ack?.({ error: `Aucun joueur nommé « ${recipient} » à cette table` });
+          if (target.id === user.id) return ack?.({ error: 'Vous ne pouvez pas vous écrire à vous-même' });
+          const message = await persistMessage({
+            campaignId,
+            userId: user.id,
+            authorName,
+            type: 'WHISPER',
+            content: raw,
+            whisperTo: target.id,
+          });
+          dispatchMessage(campaignId, message, access);
+          return ack?.({ ok: true });
+        }
 
         // Chuchotement : /w pseudo message
         const whisper = /^\/(w|whisper)\s+(\S+)\s+([\s\S]+)$/i.exec(raw);

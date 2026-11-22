@@ -35,7 +35,16 @@ const publicUser = (user) => ({
   avatarUrl: user.avatarUrl,
   isAdmin: user.isAdmin,
   usesSeedIdentity: usesSeedIdentity(user.email),
+  prefs: user.prefs && typeof user.prefs === 'object' ? user.prefs : {},
 });
+
+/** Réglages d'interface acceptés : liste fermée, valeurs bornées. */
+const prefsSchema = z
+  .object({
+    chatHeight: z.number().int().min(60).max(2000).optional(),
+    chatCollapsed: z.boolean().optional(),
+  })
+  .strict();
 
 authRouter.post(
   '/register',
@@ -102,10 +111,17 @@ authRouter.patch(
           .optional(),
         email: z.string().email('Adresse e-mail invalide').optional(),
         avatarUrl: z.string().max(500).nullish(),
+        prefs: prefsSchema.optional(),
       }),
       req.body,
     );
     if (data.email) data.email = data.email.toLowerCase().trim();
+    // Les réglages se fusionnent : envoyer la hauteur du chat n'efface pas le reste.
+    if (data.prefs) {
+      const current = await prisma.user.findUnique({ where: { id: req.user.id }, select: { prefs: true } });
+      const base = current?.prefs && typeof current.prefs === 'object' ? current.prefs : {};
+      data.prefs = { ...base, ...data.prefs };
+    }
     if (data.username || data.email) {
       const clash = await prisma.user.findFirst({
         where: {

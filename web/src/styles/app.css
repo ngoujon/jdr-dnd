@@ -660,7 +660,7 @@
 
 .zoom-hud {
   position: absolute;
-  bottom: 12px;
+  bottom: calc(var(--chat-h, 0px) + 12px);
   left: 12px;
   display: flex;
   align-items: center;
@@ -794,15 +794,149 @@
 .sheet-roll-opts .seg.small button, .sheet-roll-opts .seg button { padding: 4px 9px; font-size: 11.5px; }
 .sheet-roll-opts .check { font-size: 12px; }
 
+/* Chat ancré en bas du plateau : la carte reste visible à travers le fond. */
+.chat-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: rgba(14, 18, 24, 0.78);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.3);
+}
+.chat-dock.dragging { user-select: none; }
+.chat-dock-grip {
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.chat-dock-grip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 46px;
+  height: 4px;
+  margin-left: -23px;
+  border-radius: 3px;
+  background: var(--ink-500);
+  opacity: 0.8;
+}
+.chat-dock-grip:hover::after, .chat-dock.dragging .chat-dock-grip::after { background: var(--brass); opacity: 1; }
+.chat-dock-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 4px;
+  flex: none;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.chat-dock-title { font-family: var(--font-display); font-size: 13px; color: var(--brass-bright); }
+.chat-dock-dice { display: flex; gap: 3px; }
+.die-btn.sm { width: 36px; height: 24px; font-size: 11px; }
+.chat-secret { font-size: 12px; }
+.chat-secret.on { color: var(--arcane, #b4a3f0); }
+
+.chat-dock .chat-log {
+  flex: 1;
+  min-height: 0;
+  padding: 2px 10px 4px;
+  gap: 1px;
+  overflow-y: auto;
+}
+.chat-empty { font-size: 12px; color: var(--text-faint); padding: 6px 0; }
+
+/* Une ligne par message ; un long message revient à la ligne en retrait,
+   sous le texte, pour rester facile à suivre. */
+.chat-line {
+  margin: 0;
+  padding: 2px 6px 2px 4.6em;
+  text-indent: -4.2em;
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+  border-radius: 4px;
+  animation: rise 0.14s ease-out;
+}
+.chat-line:hover { background: rgba(255, 255, 255, 0.04); }
+.chat-line > * { text-indent: 0; }
+.chat-line time {
+  display: inline-block;
+  width: 3.6em;
+  margin-right: 0.3em;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.chat-author { color: var(--brass-bright); font-weight: 600; margin-right: 6px; }
+.chat-author::after { content: ' :'; color: var(--text-faint); font-weight: 400; }
+.chat-line.own .chat-author { color: var(--parchment); }
+.chat-text { color: var(--text); }
+.chat-line.emote .chat-text { font-style: italic; color: var(--text-dim); }
+.chat-line.ooc .chat-text { color: var(--text-faint); }
+.chat-line.system .chat-text { color: var(--brass); font-style: italic; }
+.chat-line.private { background: rgba(122, 95, 208, 0.14); }
+.chat-private {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  color: #cfc3ff;
+  background: rgba(122, 95, 208, 0.28);
+}
+
+/* Jet de dés : police réduite pour tenir sur une seule ligne. */
+.chat-line.roll { font-size: 11.5px; }
+.roll-line { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; vertical-align: middle; }
+.roll-line-label { color: var(--text-dim); }
+.roll-line-formula { font-size: 10.5px; color: var(--text-faint); }
+.roll-line-adv { font-size: 10px; padding: 0 4px; border-radius: 3px; background: var(--ink-700); color: var(--text-dim); }
+.roll-line-adv.on { background: rgba(192, 135, 63, 0.25); color: var(--brass-bright); }
+.roll-line-parts { display: inline-flex; align-items: center; gap: 3px; }
+.roll-line-eq { color: var(--text-faint); }
+.roll-line-total { font-size: 14px; color: var(--parchment); font-variant-numeric: tabular-nums; }
+.roll-line.crit .roll-line-total { color: var(--success); }
+.roll-line.fumble .roll-line-total { color: var(--danger); }
+.roll-line .roll-flag { margin-top: 0; font-size: 9.5px; }
+.die.sm { min-width: 17px; height: 16px; font-size: 10px; padding: 0 2px; border-radius: 3px; }
+
 .chat-form {
   display: flex;
+  align-items: center;
   gap: 6px;
-  padding: 8px 10px;
-  border-top: 1px solid var(--line);
-  background: var(--ink-850);
+  padding: 5px 10px 7px;
   flex: none;
 }
-.chat-form .speaker { max-width: 120px; flex: none; }
+.chat-form .speaker { max-width: 130px; flex: none; }
+.chat-form .chat-input { flex: 1; min-width: 0; }
+.chat-to { position: relative; flex: none; width: 150px; }
+.chat-to .input { width: 100%; padding-right: 22px; }
+.chat-to.private .input { border-color: #7a5fd0; background: rgba(122, 95, 208, 0.16); color: #e2dbff; }
+.chat-to-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+}
+.chat-dock.collapsed .chat-dock-bar { padding-bottom: 2px; }
+.chat-dock-toggle { font-size: 14px; line-height: 1; min-width: 26px; }
 
 /* -------------------------------------------------------------- Groupe --- */
 
@@ -1864,7 +1998,7 @@
      et la barre de des, c'est-a-dire exactement ce qu'on consulte en meme temps
      qu'une conversation privee. */
   right: calc(var(--right-rail-w) + 18px);
-  bottom: 54px;
+  bottom: calc(var(--chat-h, 0px) + 54px);
   z-index: 180;
   display: flex;
   align-items: flex-end;
@@ -1928,7 +2062,7 @@
 .whisper-bar {
   position: fixed;
   right: calc(var(--right-rail-w) + 18px);
-  bottom: 12px;
+  bottom: calc(var(--chat-h, 0px) + 12px);
   z-index: 180;
   display: flex;
   gap: 6px;
@@ -2220,6 +2354,36 @@
 }
 .light-list li.light-attack > .roll-chip.damage:hover { background: rgba(208, 87, 76, 0.26); color: #f0a198; }
 .light-attack > .ellipsis { min-width: 0; color: var(--text); }
+
+/* Onglet « Jets » : un test et une sauvegarde par caractéristique. */
+.light-rolls { display: flex; flex-direction: column; gap: 10px; }
+.light-roll-row { display: flex; align-items: center; gap: 6px; padding: 3px 6px; font-size: 12.5px; }
+.light-roll-row + .light-roll-row { border-top: 1px solid var(--line-soft); }
+.light-roll-name { flex: 1; min-width: 0; color: var(--text-dim); }
+.light-roll-name strong { display: inline-block; width: 34px; color: var(--text); font-size: 11px; letter-spacing: 0.04em; }
+.light-list li.light-roll-row > .roll-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: auto;
+  min-width: 48px;
+  flex: none;
+  padding: 3px 7px;
+  border: 1px solid rgba(192, 135, 63, 0.45);
+  border-radius: 6px;
+  background: rgba(192, 135, 63, 0.1);
+  color: var(--brass-bright);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.06s;
+}
+.light-list li.light-roll-row > .roll-chip:hover { background: rgba(192, 135, 63, 0.26); color: var(--brass-bright); }
+.light-list li.light-roll-row > .roll-chip:active { transform: translateY(1px); }
+.light-list li.light-roll-row > .roll-chip.proficient { border-color: var(--brass); background: rgba(192, 135, 63, 0.22); }
+.light-free-dice { display: flex; flex-wrap: wrap; gap: 4px; }
 .rank-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-500); flex: none; }
 .rank-dot.r1 { background: var(--brass); border-color: var(--brass); }
 .rank-dot.r2 { background: var(--brass-bright); border-color: var(--brass-bright); box-shadow: 0 0 0 2px rgba(224, 167, 92, 0.3); }

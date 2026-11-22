@@ -92,7 +92,8 @@ export function CharacterSheet({ character: initial, onClose, docked = false }) 
   };
 
   const doRoll = (formula, label, advantage = 'none') => {
-    const hasD20 = /\bd20\b/i.test(String(formula));
+    // « 1d20+3 » : pas de frontière de mot entre le 1 et le d, d'où ce motif.
+    const hasD20 = /(^|[^a-z])\d*d20(?!\d)/i.test(String(formula));
     // Maj/Ctrl + clic l'emporte ; sinon on prend le choix de la barre de jets.
     const mode = advantage !== 'none' ? advantage : hasD20 ? rollAdvantage : 'none';
     // L'avantage vaut pour un seul jet de d20 : on revient ensuite a « Normal ».
@@ -558,7 +559,7 @@ function LightSheet({
   adjustHp, rollWithModifiers, doRoll, rollOptions, save, onExpand, onClose,
 }) {
   const [side, setSideState] = useState(() => readPref(SHEET_SIDE_KEY, 'left'));
-  const [section, setSection] = useState('skills');
+  const [section, setSection] = useState('rolls');
   const setSide = (next) => {
     setSideState(next);
     writePref(SHEET_SIDE_KEY, next);
@@ -720,6 +721,7 @@ function LightSheet({
 
         <div className="seg small light-tabs">
           {[
+            ['rolls', 'Jets'],
             ['skills', 'Compétences'],
             ['attacks', 'Attaques'],
             ...(slotLevels.length ? [['spells', 'Sorts']] : []),
@@ -729,6 +731,63 @@ function LightSheet({
             </button>
           ))}
         </div>
+
+        {section === 'rolls' ? (
+          <div className="light-rolls">
+            <ul className="light-list">
+              {ABILITIES.map((ability) => {
+                const mod = derived.mods?.[ability.key] ?? modifier(abilities[ability.key] ?? 10);
+                const saveBonus = derived.saves?.[ability.key] ?? mod;
+                return (
+                  <li key={ability.key} className="light-roll-row">
+                    <span className="light-roll-name ellipsis">
+                      <strong>{ability.short}</strong> {ability.label}
+                    </span>
+                    <button
+                      type="button"
+                      className="roll-chip"
+                      onClick={rollWithModifiers(mod, `Test de ${ability.label}`)}
+                      title={`Test de ${ability.label} — Maj : avantage, Ctrl : désavantage`}
+                    >
+                      <span className="roll-chip-label">Test</span>
+                      {signed(mod)}
+                    </button>
+                    <button
+                      type="button"
+                      className={`roll-chip ${profs.saves?.[ability.key] ? 'proficient' : ''}`}
+                      onClick={rollWithModifiers(saveBonus, `Sauvegarde de ${ability.label}`)}
+                      title={`Sauvegarde de ${ability.label}${profs.saves?.[ability.key] ? ' (maîtrisée)' : ''} — Maj : avantage, Ctrl : désavantage`}
+                    >
+                      <span className="roll-chip-label">Sauv.</span>
+                      {signed(saveBonus)}
+                    </button>
+                  </li>
+                );
+              })}
+              <li className="light-roll-row">
+                <span className="light-roll-name ellipsis">
+                  <strong>Init.</strong> Initiative
+                </span>
+                <button
+                  type="button"
+                  className="roll-chip"
+                  onClick={rollWithModifiers(derived.initiative ?? 0, 'Initiative')}
+                  title="Initiative — Maj : avantage, Ctrl : désavantage"
+                >
+                  <span className="roll-chip-label">Jet</span>
+                  {signed(derived.initiative ?? 0)}
+                </button>
+              </li>
+            </ul>
+            <div className="light-free-dice">
+              {['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'].map((die) => (
+                <button key={die} type="button" className="die-btn sm" onClick={() => doRoll(`1${die}`, '')} title={`Lancer 1${die}`}>
+                  {die}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {section === 'skills' ? (
           <ul className="light-list">

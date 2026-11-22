@@ -72,6 +72,16 @@ export const useAuth = create((set) => ({
     return user;
   },
 
+  /** Réglage d'interface du compte : appliqué tout de suite, enregistré ensuite. */
+  async savePrefs(patch) {
+    set((s) => (s.user ? { user: { ...s.user, prefs: { ...(s.user.prefs || {}), ...patch } } } : {}));
+    try {
+      await api.patch('/auth/me', { prefs: patch });
+    } catch {
+      /* réglage non enregistré : il reste valable pour cette session */
+    }
+  },
+
   logout() {
     setToken(null);
     resetSocket();
@@ -202,8 +212,14 @@ export const useTable = create((set, get) => ({
 
     on('presence:updated', ({ online }) => set({ online }));
 
+    // Un jet secret visant le MJ lui parvient par plusieurs canaux (destinataire,
+    // auteur, salon des MJ) : on ne l'affiche qu'une fois.
     on('chat:message', ({ message }) =>
-      set((state) => ({ messages: [...state.messages, message].slice(-300) })),
+      set((state) =>
+        state.messages.some((m) => m.id === message.id)
+          ? {}
+          : { messages: [...state.messages, message].slice(-300) },
+      ),
     );
 
     on('token:created', ({ token }) => {
@@ -527,8 +543,9 @@ export const useTable = create((set, get) => ({
 
   /* --- Chat & des -------------------------------------------------------- */
 
-  sendChat(text, characterName) {
-    return emitAck('chat:send', { campaignId: get().campaignId, text, characterName });
+  /** `to` : pseudo du destinataire d'un message privé, vide pour toute la table. */
+  sendChat(text, characterName, to) {
+    return emitAck('chat:send', { campaignId: get().campaignId, text, characterName, to: to || undefined });
   },
 
   roll(options) {

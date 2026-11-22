@@ -2,6 +2,20 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.13.0',
+    date: '2026-11-22',
+    changes: [
+      "Le chat quitte la barre de droite et s'ancre en bas du plateau, sur un fond légèrement transparent",
+      "Chat : dés, Normal / Avantage / Désavantage et jet secret directement dans sa barre",
+      "Chat : champ « À : » — vide pour toute la table, un pseudo pour un message privé",
+      "Chat : une ligne par message, jets de dés compacts",
+      "Chat : hauteur réglable à la poignée (ou repliable), mémorisée sur votre compte",
+      "Fiche : l'avantage, le désavantage et le jet secret s'appliquent enfin aux tests de caractéristiques",
+      "Fiche réduite : nouvel onglet « Jets » (tests, sauvegardes, initiative, dés libres)",
+      "Le cercle de déplacement d'un pion suit l'échelle de la carte",
+    ],
+  },
+  {
     version: '0.12.1',
     date: '2026-11-15',
     changes: [

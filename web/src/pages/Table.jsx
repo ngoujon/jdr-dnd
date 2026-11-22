@@ -143,7 +143,7 @@ export function TablePage() {
   const [brush, setBrush] = useState({ color: '#e0a75c', width: 4, shape: 'pen', gmOnly: false });
   const [reactionsOpen, setReactionsOpen] = useState(false);
   const [selection, setSelection] = useState([]);
-  const [rightTab, setRightTab] = useState('chat');
+  const [rightTab, setRightTab] = useState('party');
   // Ouverte d'emblee : outils de preparation pour le MJ, fiche pour le joueur.
   const [leftOpen, setLeftOpen] = useState(true);
   const [leftTab, setLeftTab] = useState('scenes');
@@ -152,7 +152,8 @@ export function TablePage() {
   const [openCharacter, setOpenCharacter] = useState(null);
   const [sheetId, setSheetId] = useState(null);
   const [speakingAs, setSpeakingAs] = useState(null);
-  const [whisperTarget, setWhisperTarget] = useState(null);
+  // Destinataire du chat : vide pour toute la table, un pseudo pour du privé.
+  const [chatRecipient, setChatRecipient] = useState('');
   const viewRef = useRef({});
 
   useEffect(() => {
@@ -671,6 +672,13 @@ export function TablePage() {
           {selectedToken && canEditSelected ? (
             <TokenInspector tokenId={selectedToken.id} onClose={() => setSelection([])} />
           ) : null}
+
+          <ChatPanel
+            speakingAs={speakingAs}
+            onSpeakingAsChange={setSpeakingAs}
+            recipient={chatRecipient}
+            onRecipientChange={setChatRecipient}
+          />
         </section>
 
         <aside className="right-rail">
@@ -679,7 +687,6 @@ export function TablePage() {
             value={rightTab}
             onChange={setRightTab}
             tabs={[
-              { key: 'chat', label: 'Chat' },
               { key: 'party', label: 'Groupe' },
               { key: 'combat', label: 'Combat' },
               { key: 'handouts', label: 'Docs' },
@@ -688,22 +695,8 @@ export function TablePage() {
             ]}
           />
           <div className="rail-body">
-            {rightTab === 'chat' ? (
-              <ChatPanel
-                speakingAs={speakingAs}
-                onSpeakingAsChange={setSpeakingAs}
-                whisperTarget={whisperTarget}
-                onWhisperConsumed={() => setWhisperTarget(null)}
-              />
-            ) : null}
             {rightTab === 'party' ? (
-              <PartyPanel
-                onOpenCharacter={openSheet}
-                onWhisper={(member) => {
-                  setWhisperTarget(member);
-                  setRightTab('chat');
-                }}
-              />
+              <PartyPanel onOpenCharacter={openSheet} onWhisper={(member) => setChatRecipient(member.username)} />
             ) : null}
             {rightTab === 'combat' ? <CombatTracker /> : null}
             {rightTab === 'handouts' ? <HandoutPanel /> : null}

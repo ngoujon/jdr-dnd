@@ -47,6 +47,8 @@ model User {
   isAdmin      Boolean      @default(false)
   createdAt    DateTime     @default(now())
   lastSeenAt   DateTime     @default(now())
+  /// Réglages d'interface propres au compte (hauteur du chat…), suivent le joueur d'un appareil à l'autre.
+  prefs        Json         @default("{}")
 
   ownedCampaigns Campaign[]    @relation("CampaignGM")
   memberships    Membership[]
