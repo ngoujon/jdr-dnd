@@ -1995,131 +1995,69 @@
 }
 .menu-empty { padding: 8px 10px; font-size: 12px; color: var(--text-faint); }
 
-/* --------------------------------------------- Conversations privées --- */
+/* ------------------------------------------- Messages privés non lus --- */
 
-/* Les fenêtres s'empilent au-dessus de la barre des conversations réduites,
-   du côté opposé au panneau latéral pour ne pas masquer le chat général. */
-.whisper-windows {
-  position: fixed;
-  /* A gauche du panneau lateral, sinon les fenetres recouvrent le chat general
-     et la barre de des, c'est-a-dire exactement ce qu'on consulte en meme temps
-     qu'une conversation privee. */
-  right: calc(var(--right-rail-w) + 18px);
-  bottom: calc(var(--chat-h, 0px) + 54px);
-  z-index: 180;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  pointer-events: none;
+/* Un MP non lu se voit de loin : bandeau au-dessus du chat, bord du chat qui
+   pulse, compteur dans sa barre, ligne en surbrillance. Tout s'éteint dès
+   qu'on lit (clic dans le chat, « Vu » ou « Répondre »). */
+@keyframes pm-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(150, 120, 255, 0.7), 0 10px 28px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(150, 120, 255, 0), 0 10px 28px rgba(0, 0, 0, 0.5); }
 }
-/* Message privé reçu : la conversation s'ouvre au milieu de l'écran. */
-.whisper-popup-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 190;
+@keyframes pm-glow {
+  0%, 100% { border-top-color: #7a5fd0; box-shadow: 0 -4px 18px rgba(122, 95, 208, 0.25); }
+  50% { border-top-color: #c7b8ff; box-shadow: 0 -8px 30px rgba(150, 120, 255, 0.6); }
+}
+@keyframes pm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.chat-dock.has-unread { border-top: 2px solid #7a5fd0; animation: pm-glow 1.2s ease-in-out infinite; }
+.chat-pm-alert {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(4, 6, 10, 0.55);
-  backdrop-filter: blur(2px);
-  animation: fade-in 0.12s ease-out;
+  gap: 12px;
+  max-width: min(640px, calc(100% - 24px));
+  padding: 10px 12px 10px 14px;
+  border: 1px solid #a993ff;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4b3796, #2c2160);
+  color: #f1edff;
+  animation: rise 0.18s ease-out, pm-pulse 1.4s ease-in-out 0.18s infinite;
 }
-.whisper-window.popup { width: 460px; height: 520px; max-height: 80vh; }
-.whisper-window {
-  pointer-events: auto;
-  width: 380px;
-  max-width: calc(100vw - 32px);
-  height: 460px;
-  max-height: 72vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--ink-800);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  animation: rise 0.14s ease-out;
-}
-.whisper-head {
-  display: flex;
+.chat-pm-alert-icon { font-size: 26px; line-height: 1; animation: pm-blink 1.2s ease-in-out infinite; }
+.chat-pm-alert-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 14px; }
+.chat-pm-alert-text strong { font-size: 15px; }
+.chat-pm-alert-text em { font-style: normal; color: #d9d0ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-pm-alert .btn { flex: none; }
+.chat-pm-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--ink-850);
-}
-.whisper-head strong { font-size: 14px; min-width: 0; }
-.whisper-body { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; flex: 1; }
-.whisper-line {
-  margin: 0;
-  padding: 6px 9px;
-  border-radius: var(--radius);
-  background: var(--ink-750);
-  font-size: 14px;
-  line-height: 1.45;
-  align-self: flex-start;
-  max-width: 88%;
-}
-.whisper-line.mine { align-self: flex-end; background: rgba(192, 135, 63, 0.16); }
-.whisper-line time { display: block; margin-top: 2px; font-size: 10px; color: var(--text-faint); }
-.whisper-foot { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
-.whisper-foot .input { flex: 1; min-width: 0; }
-
-/* Fenêtre d'un pion ouverte (268 px + marge) : on se range à sa gauche. */
-.table-page.with-inspector .whisper-windows,
-.table-page.with-inspector .whisper-bar { right: calc(var(--right-rail-w) + 18px + 284px); }
-
-.whisper-bar {
-  position: fixed;
-  right: calc(var(--right-rail-w) + 18px);
-  bottom: calc(var(--chat-h, 0px) + 12px);
-  z-index: 180;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  max-width: 60vw;
-}
-.whisper-tab {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  max-width: 190px;
-  padding: 5px 10px 5px 6px;
-  background: var(--ink-800);
-  border: 1px solid var(--line);
+  gap: 5px;
+  padding: 2px 10px;
+  border: 1px solid #a993ff;
   border-radius: 999px;
-  color: var(--text-dim);
+  background: #5a43b8;
+  color: #fff;
   font-size: 12px;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-}
-.whisper-tab:hover { color: var(--text); border-color: var(--brass); }
-.whisper-tab.has-unread { color: var(--text); border-color: var(--brass); }
-
-/* Un message non lu fait clignoter sa conversation jusqu'a ce qu'on la lise. */
-@keyframes whisper-blink {
-  0%, 100% { border-color: var(--line); box-shadow: var(--shadow); }
-  50% { border-color: var(--brass-bright); box-shadow: 0 0 0 3px rgba(224, 167, 92, 0.45), var(--shadow); }
-}
-.whisper-tab.has-unread { animation: whisper-blink 1.1s ease-in-out infinite; }
-.whisper-window.has-unread { animation: rise 0.14s ease-out, whisper-blink 1.1s ease-in-out 0.14s infinite; }
-.whisper-window.has-unread .whisper-head { background: rgba(192, 135, 63, 0.18); }
-@media (prefers-reduced-motion: reduce) {
-  .whisper-tab.has-unread,
-  .whisper-window.has-unread { animation: none; border-color: var(--brass-bright); }
-}
-.whisper-badge {
-  font-style: normal;
-  font-size: 10px;
   font-weight: 700;
-  min-width: 16px;
-  text-align: center;
-  padding: 1px 4px;
-  border-radius: 999px;
-  background: var(--brass);
-  color: #241704;
+  cursor: pointer;
+  animation: pm-blink 1s ease-in-out infinite;
+}
+.chat-line.unread {
+  background: rgba(122, 95, 208, 0.38);
+  box-shadow: inset 3px 0 0 #b4a3f0;
+  animation: pm-blink 1.2s ease-in-out infinite;
+}
+.chat-line.private.reply-able { cursor: pointer; }
+.chat-line.private.reply-able:hover { background: rgba(122, 95, 208, 0.26); }
+@media (prefers-reduced-motion: reduce) {
+  .chat-dock.has-unread, .chat-pm-alert, .chat-pm-alert-icon, .chat-pm-badge, .chat-line.unread { animation: none; }
 }
 
 /* ---------------------------------------------------- Choix d'un sort --- */

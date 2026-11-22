@@ -2,6 +2,15 @@
 // Pense à ajouter une entrée en tête de liste à chaque nouvelle fonctionnalité livrée.
 export const CHANGELOG = [
   {
+    version: '0.14.0',
+    date: '2026-11-22',
+    changes: [
+      "Messages privés regroupés dans le chat du bas : plus de fenêtres séparées",
+      "MP non lu : bandeau au-dessus du chat, son, compteur clignotant et titre d'onglet qui clignote",
+      "Bouton « Répondre » sur le bandeau, ou clic sur un message privé pour répondre à son auteur",
+    ],
+  },
+  {
     version: '0.13.1',
     date: '2026-11-22',
     changes: [

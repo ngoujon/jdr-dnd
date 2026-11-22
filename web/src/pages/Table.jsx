@@ -11,7 +11,6 @@ import { SceneManager, SceneSettings } from '../components/SceneManager.jsx';
 import { AssetLibrary } from '../components/AssetLibrary.jsx';
 import { TokenInspector } from '../components/TokenInspector.jsx';
 import { CharacterSheet } from '../components/CharacterSheet.jsx';
-import { WhisperDock } from '../components/WhisperDock.jsx';
 import { VoicePanel } from '../components/VoicePanel.jsx';
 import { SoundPanel, SoundUnlock } from '../components/SoundPanel.jsx';
 import { listenSound } from '../lib/sound.js';
@@ -296,9 +295,7 @@ export function TablePage() {
       characters.some((c) => c.id === selectedToken.characterId && c.ownerId === me?.id));
 
   return (
-    // Fenêtre du pion ouverte : les conversations privées se décalent à sa
-    // gauche au lieu de la recouvrir.
-    <div className={`table-page ${selectedToken && canEditSelected ? 'with-inspector' : ''}`}>
+    <div className="table-page">
       <TopBar title={campaign?.name} subtitle={scene?.name}>
         <div className="online-strip">
           {online.slice(0, 8).map((user) => (
@@ -712,7 +709,6 @@ export function TablePage() {
         <CharacterSheet character={openCharacter} onClose={() => setOpenCharacter(null)} />
       ) : null}
 
-      <WhisperDock />
       <SoundUnlock />
     </div>
   );
